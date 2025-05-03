@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { ProfileData } from '@/types'; // ProfileData tipini import et
 import { TrophyIcon, UserCircleIcon, CheckCircleIcon } from '@heroicons/react/24/solid'; // İkon
 import { SparklesIcon } from '@heroicons/react/24/outline'; // Puan için ikon
-import { LSP3Profile } from "@lukso/lsp-factory.js";
+import { LSP3Profile } from "@lukso/lsp-factory";
 
 export interface LeaderboardEntry {
   rank: number;
