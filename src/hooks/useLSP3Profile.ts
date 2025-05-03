@@ -60,20 +60,25 @@ export class LSP3ProfileManager {
         return null;
       }
 
-      if (!this.provider) {
-        console.warn('No provider available in LSP3ProfileManager');
-        return null;
+      // İlk provider kontrolünü ve Vercel ortamı için alternatif provider hazırlığını yapıyoruz
+      let provider = this.provider;
+      const isRunningInVercel = typeof window !== 'undefined' && window.location?.hostname.includes('vercel.app');
+      
+      // Eğer provider yoksa veya Vercel ortamındaysak alternatif bir provider kullanmayı dene
+      if (!provider || isRunningInVercel) {
+        console.log('Using direct RPC URL provider instead of browser extension for compatibility');
+        // Alternatif RPC URL - LUKSO mainnet
+        const mainnetRpcUrl = 'https://rpc.lukso.gateway.fm';
+        provider = mainnetRpcUrl;
       }
 
-      // Create ERC725 instance
+      // Create ERC725 instance with appropriate provider
       const erc725 = new ERC725(
         LSP3ProfileSchema as any,
         address as `0x${string}`,
-        this.provider,
+        provider,
         this.erc725Config
       );
-
-      // console.debug('LSP3 Profile data fetching:', address);
 
       const keysToFetch = [ 'LSP3Profile' ]; 
       console.log("[DEBUG LSP3Profile] Fetching keys:", JSON.stringify(keysToFetch));
@@ -82,13 +87,11 @@ export class LSP3ProfileManager {
       const profileData = await erc725.fetchData('LSP3Profile');
       
       if (!profileData?.value) {
-        // console.debug('Profile data not found:', address);
         return null;
       }
 
       // Format and return profile data
       const formattedProfile = this.formatProfileData(profileData.value);
-      // console.debug('Profile fetched:', formattedProfile.name);
       
       return formattedProfile;
     } catch (error) {
