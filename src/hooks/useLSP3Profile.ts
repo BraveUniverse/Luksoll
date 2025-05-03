@@ -13,6 +13,8 @@ const IPFS_GATEWAYS = [
   'https://cloudflare-ipfs.com/ipfs/',
   'https://ipfs.io/ipfs/'
 ];
+      const keysToFetch = [ 'LSP3Profile' ]; 
+      console.log("[DEBUG LSP3Profile] Fetching keys:", JSON.stringify(keysToFetch));
 
 // LSP3 Profil veri tipi tanımı (Genişletilmiş)
 interface ProfileData {
