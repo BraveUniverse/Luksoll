@@ -3,10 +3,10 @@
 import React, { useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ProfileData } from '@/types'; // Import ProfileData type
-import { TrophyIcon, UserCircleIcon, CheckCircleIcon } from '@heroicons/react/24/solid'; // Icons
-import { SparklesIcon } from '@heroicons/react/24/outline'; // Icon for points
-import { LSP3Profile } from "@lukso/lsp-factory.js"; // Added .js extension back
+import { ProfileData } from '@/types'; // ProfileData tipini import et
+import { TrophyIcon, UserCircleIcon, CheckCircleIcon } from '@heroicons/react/24/solid'; // İkon
+import { SparklesIcon } from '@heroicons/react/24/outline'; // Puan için ikon
+import { LSP3Profile } from "@lukso/lsp-factory.js";
 
 export interface LeaderboardEntry {
   rank: number;
