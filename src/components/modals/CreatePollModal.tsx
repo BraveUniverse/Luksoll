@@ -94,7 +94,7 @@ const CreatePollModal: React.FC<CreatePollModalProps> = ({
     upProvider
   } = useUP();
   
-  const { assets, loading: assetsLoading } = useLSP5ReceivedAssets(contextAddress, upProvider);
+  const { assets, loading: assetsLoading } = useLSP5ReceivedAssets(contextAddress);
   
   const tokens = useMemo(() => assets.filter(asset => !asset.isNFT), [assets]);
   const nfts = useMemo(() => assets.filter(asset => asset.isNFT), [assets]);

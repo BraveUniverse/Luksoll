@@ -36,7 +36,6 @@ interface UPContextType {
   contract: any;
   error: string | null;
   connectUP: () => Promise<void>;
-  loadProfileData: (address: string) => Promise<ProfileData | null>;
   isInitialized: boolean;
   provider: SupportedProviders | undefined;
   disconnectUP: () => void;
@@ -263,67 +262,11 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [upProvider, contextAccounts, updateConnected, web3, isInitialized]);
 
-  // Profil verilerini yükle - LSP3Profile standartını kullanarak
-  const loadProfileData = async (userAddress: string): Promise<ProfileData | null> => {
-    // Fonksiyonun başında provider ve initialized kontrolü
-    if (!upProvider || !isInitialized) {
-      console.warn('[loadProfileData] Aborted: Provider not available or not initialized.');
-      return null;
-    }
-    if (!userAddress) {
-      console.warn('[loadProfileData] Aborted: No user address provided.');
-      return null;
-    }
-    
-    console.log('Profil verisi yükleniyor:', userAddress);
-    setError(null); // Clear previous errors
-    
-    try {
-      // ERC725 provider olarak doğrudan upProvider'ı kullan
-      // const provider = web3.currentProvider; // Bu satır kaldırıldı
-      const config = { ipfsGateway: 'https://api.universalprofile.cloud/ipfs' };
-      
-      // ERC725 instance oluştur
-      const erc725 = new ERC725(
-        LSP3ProfileSchema,
-        userAddress,
-        upProvider as any, // Doğrudan upProvider kullanıldı
-        config
-      );
-      
-      // LSP3Profile verilerini çek
-      const profileData = await erc725.fetchData('LSP3Profile');
-      console.log('Profil verisi:', profileData);
-      
-      if (!profileData.value) {
-        return {
-          name: 'LUKSO User',
-          profileImage: '/default-avatar.png'
-        };
-      }
-      
-      const profile = profileData.value as any;
-      
-      const processedProfile: ProfileData = {
-        name: profile.name || 'LUKSO User',
-        description: profile.description || '',
-        tags: profile.tags || [],
-        links: profile.links || [],
-        profileImage: profile.profileImage?.[0]?.url || '/default-avatar.png',
-        backgroundImage: profile.backgroundImage?.[0]?.url || ''
-      };
-      
-      return processedProfile;
-    } catch (err: any) {
-      console.error('Error loading profile data:', err);
-      
-      // Return default profile info on error
-      return {
-        name: 'LUKSO User', 
-        profileImage: '/default-avatar.png'
-      };
-    }
-  };
+  // Profil verilerini yükle - DEVRE DIŞI BIRAKILDI - Bu iş useLSP3Profile hook'unda yapılmalı
+  const loadProfileData = useCallback(async (userAddress: string): Promise<ProfileData | null> => {
+    console.warn('[loadProfileData] called inside UPContext, but should be handled by useLSP3Profile. Returning null.');
+    return null; // Fonksiyonun içini boşaltıp null döndür
+  }, []); // Bağımlılıkları da kaldırabiliriz, artık bir işe yaramıyor
 
   // Connect to UP
   const connectUP = async () => {
@@ -356,11 +299,8 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
       // Update connection status
       updateConnected(accounts, _contextAccounts);
       
-      // Load user profile data
-      if (accounts.length > 0) {
-        const profile = await loadProfileData(accounts[0]);
-        setProfileData(profile);
-      }
+      // Profil verisi yükleme işlemi buradan kaldırıldı.
+      // Hook'lar kendi profillerini context'teki provider/web3 ile çekecek.
       
     } catch (err: any) {
       console.error('Connection error:', err);
@@ -390,7 +330,6 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
         contract,
         error,
         connectUP,
-        loadProfileData,
         isInitialized,
         provider,
         disconnectUP

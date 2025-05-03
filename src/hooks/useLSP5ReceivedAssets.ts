@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UPClientProvider } from '@lukso/up-provider';
 import { ERC725 } from '@erc725/erc725.js';
 import LSP5Schema from '@erc725/erc725.js/schemas/LSP5ReceivedAssets.json';
 import LSP4Schema from '@erc725/erc725.js/schemas/LSP4DigitalAsset.json';
 import LSP3Schema from '@erc725/erc725.js/schemas/LSP3ProfileMetadata.json';
+import Web3 from 'web3';
+import type { EthExecutionAPI, SupportedProviders } from 'web3';
+import { useUP } from '@/context/UPContext';
 
 // IPFS Gateway URLs
 const IPFS_GATEWAYS = [
@@ -32,11 +34,9 @@ interface AssetMetadata {
  * Manages LSP5 Received Assets - Reads received assets
  */
 class LSP5ReceivedAssetsManager {
-  private provider: UPClientProvider | null;
   private erc725Config: any;
 
-  constructor(provider: UPClientProvider | null) {
-    this.provider = provider;
+  constructor() {
     this.erc725Config = {
       ipfsGateway: IPFS_GATEWAYS[0]
     };
@@ -45,9 +45,9 @@ class LSP5ReceivedAssetsManager {
   /**
    * Fetches the LSP5ReceivedAssets for a given address
    */
-  async getReceivedAssets(address: string): Promise<AssetMetadata[]> {
-    if (!address || !this.provider) {
-      console.warn('LSP5ReceivedAssetsManager: No address or provider available');
+  async getReceivedAssets(address: string, web3: Web3 | null): Promise<AssetMetadata[]> {
+    if (!address || !web3 || !web3.currentProvider) {
+      console.warn('LSP5ReceivedAssetsManager: No address or web3 instance/currentProvider available');
       return [];
     }
 
@@ -56,7 +56,7 @@ class LSP5ReceivedAssetsManager {
       const erc725 = new ERC725(
         LSP5Schema as any,
         address as `0x${string}`,
-        this.provider,
+        web3.currentProvider as SupportedProviders<EthExecutionAPI>,
         this.erc725Config
       );
 
@@ -75,7 +75,7 @@ class LSP5ReceivedAssetsManager {
       
       // Her bir asset için metadata topla
       const assetsPromises = receivedAssetAddresses.map(assetAddress => 
-        this.getAssetMetadata(assetAddress)
+        this.getAssetMetadata(assetAddress, web3)
       );
       
       // Tüm promise'ları çözümle ve null olmayanları filtrele
@@ -92,15 +92,15 @@ class LSP5ReceivedAssetsManager {
   /**
    * Fetches metadata for a given token/nft address
    */
-  private async getAssetMetadata(assetAddress: string): Promise<AssetMetadata | null> {
-    if (!assetAddress || !this.provider) return null;
+  private async getAssetMetadata(assetAddress: string, web3: Web3 | null): Promise<AssetMetadata | null> {
+    if (!assetAddress || !web3 || !web3.currentProvider) return null;
 
     try {
       // ERC725 instance oluştur
       const erc725 = new ERC725(
         LSP4Schema as any,
         assetAddress as `0x${string}`,
-        this.provider,
+        web3.currentProvider as SupportedProviders<EthExecutionAPI>,
         this.erc725Config
       );
 
@@ -125,8 +125,8 @@ class LSP5ReceivedAssetsManager {
       try {
         // ERC165 supportsInterface ile interface ID'yi kontrol et
         // LUKSO dokümanındaki belirtilen interface ID'leri kullan
-        const supportsLSP7Interface = await this.checkInterface(assetAddress, '0xe33f65c3');
-        const supportsLSP8Interface = await this.checkInterface(assetAddress, '0x49399145');
+        const supportsLSP7Interface = await this.checkInterface(assetAddress, '0xe33f65c3', web3);
+        const supportsLSP8Interface = await this.checkInterface(assetAddress, '0x49399145', web3);
         
         // console.log(`Interface checks: LSP7=${supportsLSP7Interface}, LSP8=${supportsLSP8Interface}`);
         
@@ -274,10 +274,10 @@ class LSP5ReceivedAssetsManager {
       
       // Token balance'ı oku (token ise)
       let balance = undefined;
-      if (assetType === 'LSP7' && this.provider) {
+      if (assetType === 'LSP7' && web3) {
         try {
           // Bağlı olan cüzdan adresini al
-          const accounts = await this.provider.request({ method: 'eth_accounts' });
+          const accounts = await web3.eth.getAccounts();
           if (accounts && accounts.length > 0) {
             const userAddress = accounts[0];
             
@@ -290,21 +290,12 @@ class LSP5ReceivedAssetsManager {
                 data: '0x70a08231000000000000000000000000' + userAddress.substring(2)
               };
               
-              const balanceResult = await this.provider.request({
-                method: 'eth_call',
-                params: [callData, 'latest']
-              });
+              const balanceResult = await web3.eth.call(callData, 'latest');
               
               if (balanceResult) {
-                // Dönen sonucun string olup olmadığını kontrol et
-                let balanceHex = '';
-                if (typeof balanceResult === 'string') {
-                  balanceHex = balanceResult;
-                } else if (typeof balanceResult === 'object' && balanceResult !== null && 'result' in balanceResult && typeof balanceResult.result === 'string') {
-                  // Use 'result' string if it's an object containing it
-                  balanceHex = balanceResult.result;
-                }
-
+                // web3.eth.call directly returns the hex string
+                const balanceHex = balanceResult; 
+                
                 // Convert to BigInt if a valid hex string was obtained
                 if (balanceHex && balanceHex.startsWith('0x')) {
                   try {
@@ -394,9 +385,9 @@ class LSP5ReceivedAssetsManager {
   /**
    * Checks interface using ERC165 supportsInterface
    */
-  private async checkInterface(assetAddress: string, interfaceId: string): Promise<boolean> {
+  private async checkInterface(assetAddress: string, interfaceId: string, web3: Web3 | null): Promise<boolean> {
     try {
-      if (!this.provider) return false;
+      if (!web3) return false;
       
       // Prepare supportsInterface function signature manually
       // bytes4(keccak256('supportsInterface(bytes4)')) = 0x01ffc9a7
@@ -410,16 +401,10 @@ class LSP5ReceivedAssetsManager {
       const data = functionSignature + paddedInterfaceId.substring(2);
       
       // Make RPC call
-      const result = await this.provider.request({
-        method: 'eth_call',
-        params: [
-          {
-            to: assetAddress,
-            data: data
-          },
-          'latest'
-        ]
-      });
+      const result = await web3.eth.call({
+        to: assetAddress,
+        data: data
+      }, 'latest');
       
       // Check boolean result (0x01 = true, 0x00 = false)
       return result === '0x0000000000000000000000000000000000000000000000000000000000000001';
@@ -434,14 +419,15 @@ class LSP5ReceivedAssetsManager {
  * LSP5 Received Assets Hook
  * React hook to fetch tokens and NFTs owned by a user
  */
-const useLSP5ReceivedAssets = (address: string | null | undefined, provider: UPClientProvider | null) => {
+const useLSP5ReceivedAssets = (address: string | null | undefined) => {
+  const { web3 } = useUP();
   const [assets, setAssets] = useState<AssetMetadata[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!address || !provider) {
-      // console.log('useLSP5ReceivedAssets: No address or provider');
+    if (!address || !web3) {
+      // console.log('useLSP5ReceivedAssets: No address or web3 instance from context');
       return;
     }
 
@@ -453,8 +439,8 @@ const useLSP5ReceivedAssets = (address: string | null | undefined, provider: UPC
         // console.log(`useLSP5ReceivedAssets: Fetching asset data for ${address}...`);
         
         // Fetch assets using LSP5ReceivedAssetsManager
-        const manager = new LSP5ReceivedAssetsManager(provider);
-        const assetList = await manager.getReceivedAssets(address);
+        const manager = new LSP5ReceivedAssetsManager();
+        const assetList = await manager.getReceivedAssets(address, web3);
         
         // console.log('useLSP5ReceivedAssets: Assets fetched successfully:', assetList);
         setAssets(assetList);
@@ -467,7 +453,7 @@ const useLSP5ReceivedAssets = (address: string | null | undefined, provider: UPC
     };
 
     fetchAssets();
-  }, [address, provider]);
+  }, [address, web3]);
 
   return { assets, loading, error };
 };

@@ -160,8 +160,9 @@ const PollListModal: React.FC<PollListModalProps> = ({ onClose, onPollSelect }) 
 
     // 3. Fetch from RPC if not in cache
     try {
-      const lsp3Manager = new LSP3ProfileManager(upProvider);
-      const profileData = await lsp3Manager.getProfileData(creatorAddress);
+      // Initialize manager without args, get web3 from context
+      const lsp3Manager = new LSP3ProfileManager();
+      const profileData = await lsp3Manager.getProfileData(creatorAddress); // Remove web3 argument
       let profileInfo: ProfileData | null = null;
       if (profileData) {
          let imageUrl = '/default-avatar.png'; 

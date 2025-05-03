@@ -1,8 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
-  basePath: '',
-//  output: 'export', // Statik dışa aktarma KULLANMIYORUZ
+  basePath: '/miniapps/luksopoll',
+  output: 'export', // Statik dışa aktarma KULLANMIYORUZ
+  swcMinify: false, // SWC Minification'ı devre dışı bırak (Bunu şimdilik tutalım)
+
+  // --> YENİ AYAR BAŞLANGIÇ <--
+  transpilePackages: [
+    '@erc725/erc725.js',
+    // Muhtemelen erc725'in kullandığı veya etkileşimde olduğu diğerleri:
+    // '@lukso/web3', // Eğer @lukso/web3 kullanılıyorsa (varsa yorumu kaldır)
+    'web3', // Eğer genel web3 paketi kullanılıyorsa
+    '@lukso/up-provider' // Bağlantı için
+    // Not: Eğer başka LSP standart kütüphaneleri kullanılıyorsa (LSP4, LSP5 vb.)
+    // ve onlar da sorun çıkarıyorsa buraya eklenebilir.
+  ],
+  // --> YENİ AYAR BİTİŞ <--
 
   images: {
     remotePatterns: [
@@ -14,7 +27,7 @@ const nextConfig = {
 
   },
   // Üretim build'inde console loglarını kaldır
- 
+  
   // Build sırasında ESLint hatalarını görmezden gel
   eslint: {
     ignoreDuringBuilds: true,

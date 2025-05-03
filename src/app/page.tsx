@@ -40,13 +40,14 @@ export default function Home() {
     isConnected, 
     connectUP, 
     disconnectUP,
-    profileData, 
+    profileData: contextProfileData,
     connecting, 
     isInitialized, 
     address,
     contract,
     error,
-    upProvider
+    upProvider,
+    web3
   } = useUP();
   
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -153,73 +154,62 @@ export default function Home() {
       // 5. TÜM kullanıcıların profillerini çek (cache kullanarak)
       const profilePromises = topUsers.map(async (user, index) => {
         const lowerCaseAddress = user.address.toLowerCase();
-        let profileData: ProfileData | null = null; 
+        let fetchedProfileData: ProfileData | null = null;
         console.log(`[Leaderboard] Profil işleniyor: ${user.address} (Rank: ${index + 1})`);
         
         try {
             const cachedProfile = getCachedProfile(lowerCaseAddress);
             
             // Cache kontrolü: Sadece geçerli profil varsa kullan, null ise yeniden çek
-            if (cachedProfile) { 
-                profileData = cachedProfile;
+            if (cachedProfile !== undefined && cachedProfile !== null) {
+                fetchedProfileData = cachedProfile;
                 console.log(`[Leaderboard] Cache hit (Valid Profile) for ${user.address}`);
-            } else if (cachedProfile === null) {
-                 console.log(`[Leaderboard] Cache hit (Profile is null) for ${user.address}. Re-fetching from network...`);
-                 // Null cachelenmişse bile tekrar dene
-                 const lsp3Manager = new LSP3ProfileManager(upProvider);
-                 const data = await lsp3Manager.getProfileData(user.address);
-                 if (data) {
-                     console.log(`[Leaderboard] Network re-fetch SUCCESS for ${user.address}`);
-                     const imageUrl = lsp3Manager.getProfileImageUrl(data) || '';
-                     profileData = {
-                         name: data.name || `User ${user.address.substring(0, 6)}...`,
-                         image: imageUrl,
-                     };
-                     setCachedProfile(lowerCaseAddress, profileData); // Yeni veriyi cachele
-                 } else {
-                     console.log(`[Leaderboard] Network re-fetch FAILED (No profile data) for ${user.address}`);
-                     setCachedProfile(lowerCaseAddress, null); // Hâlâ yoksa null cachele
-                     profileData = null;
-                 }
-            } else { // cachedProfile === undefined (hiç cache'lenmemiş)
-                console.log(`[Leaderboard] Cache miss for ${user.address}. Fetching from network...`);
-                const lsp3Manager = new LSP3ProfileManager(upProvider); 
+            } else {
+                // Null cache veya undefined ise yeniden çek
+                if (cachedProfile === null) {
+                    console.log(`[Leaderboard] Cache hit (Profile is null) for ${user.address}. Re-fetching from network...`);
+                } else {
+                    console.log(`[Leaderboard] Cache miss for ${user.address}. Fetching from network...`);
+                }
+                
+                // Fetch using the manager and context web3
+                const lsp3Manager = new LSP3ProfileManager(); 
                 const data = await lsp3Manager.getProfileData(user.address);
                  
-                 if (data) {
+                if (data) {
                     console.log(`[Leaderboard] Network fetch SUCCESS for ${user.address}`);
                     const imageUrl = lsp3Manager.getProfileImageUrl(data) || '';
-                    profileData = {
+                    fetchedProfileData = {
                         name: data.name || `User ${user.address.substring(0, 6)}...`,
                         image: imageUrl,
                     };
-                    setCachedProfile(lowerCaseAddress, profileData); 
-                 } else {
-                     console.log(`[Leaderboard] Network fetch FAILED (No profile data) for ${user.address}`);
-                     setCachedProfile(lowerCaseAddress, null); 
-                     profileData = null;
-                 }
+                    setCachedProfile(lowerCaseAddress, fetchedProfileData);
+                } else {
+                    console.log(`[Leaderboard] Network fetch FAILED (No profile data) for ${user.address}`);
+                    setCachedProfile(lowerCaseAddress, null); 
+                    fetchedProfileData = null;
+                }
             }
         } catch (profileErr: any) {
              console.warn(`[Leaderboard] Profile processing ERROR for ${user.address}:`, profileErr.message);
              // Hata durumunda da null cache'le ki sürekli denemesin
              setCachedProfile(lowerCaseAddress, null); 
-             profileData = null;
+             fetchedProfileData = null;
         }
         
         // Profil verisi oluşturma kısmı (kodu tekrarlamamak için birleştirilebilir)
-        if (profileData && !profileData.name) {
+        if (fetchedProfileData && !fetchedProfileData.name) {
              // Eğer bir şekilde data geldi ama name yoksa, default ata
-             profileData.name = `User ${user.address.substring(0, 6)}...`;
+             fetchedProfileData.name = `User ${user.address.substring(0, 6)}...`;
          }
-         if (profileData && !profileData.image) {
-             profileData.image = ''; // veya varsayılan avatar URL'si
+         if (fetchedProfileData && !fetchedProfileData.image) {
+             fetchedProfileData.image = ''; // veya varsayılan avatar URL'si
          }
 
         return {
           ...user,
           rank: index + 1, 
-          profile: profileData
+          profile: fetchedProfileData
         };
       });
 
@@ -259,7 +249,7 @@ export default function Home() {
       isConnected,
       isInitialized,
       connecting,
-      profileData: !!profileData,
+      profileData: !!contextProfileData,
       address
     });
     
@@ -347,7 +337,7 @@ export default function Home() {
     console.log("Ana sayfa: renderContent çağrıldı:", {
       isConnected,
       connecting,
-      hasProfile: !!profileData,
+      hasProfile: !!contextProfileData,
       address
     });
     
@@ -363,17 +353,17 @@ export default function Home() {
       // Profil verisi varsa (veya varsayılan profil kullanıldıysa) ana ekranı göster
 
       // ProfileCard için profile prop'unu formatla
-      const formattedProfileDataForCard: ProfileData | null = profileData ? {
-          name: profileData.name || 'LUKSO User',
-          image: profileData.profileImage || '/default-avatar.png', // UPContext'teki profileImage'dan image alanını doldur
+      const formattedProfileDataForCard: ProfileData | null = contextProfileData ? {
+          name: contextProfileData.name || 'LUKSO User',
+          image: contextProfileData.profileImage || '/default-avatar.png', // UPContext'teki profileImage'dan image alanını doldur
           // types.ts'deki diğer opsiyonel alanları da ekleyelim
-          description: profileData.description,
-          tags: profileData.tags || [], // tags UPContext'te opsiyonel
-          links: profileData.links || [], // links UPContext'te opsiyonel
+          description: contextProfileData.description,
+          tags: contextProfileData.tags || [], // tags UPContext'te opsiyonel
+          links: contextProfileData.links || [], // links UPContext'te opsiyonel
           // types.ts'deki profileImage/backgroundImage dizilerini şimdilik doldurmuyoruz
           // çünkü UPContext tekil string döndürüyor.
-          profileImage: profileData.profileImage ? [profileData.profileImage] : undefined, // type uyumu için
-          backgroundImage: profileData.backgroundImage ? [profileData.backgroundImage] : undefined // type uyumu için
+          profileImage: contextProfileData.profileImage ? [contextProfileData.profileImage] : undefined, // type uyumu için
+          backgroundImage: contextProfileData.backgroundImage ? [contextProfileData.backgroundImage] : undefined // type uyumu için
       } : null;
 
       return (

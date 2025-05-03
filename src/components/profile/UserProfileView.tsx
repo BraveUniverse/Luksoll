@@ -75,8 +75,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ userAddress, onClose,
             return;
         }
         try {
-            const lsp3Manager = new LSP3ProfileManager(upProvider);
-            const data = await lsp3Manager.getProfileData(userAddress);
+            // Initialize manager without args, get web3 from context
+            const lsp3Manager = new LSP3ProfileManager(); 
+            const data = await lsp3Manager.getProfileData(userAddress); // Remove web3 argument
             let profileInfo: ProfileData | null = null;
             if (data) {
                 let imageUrl = lsp3Manager.getProfileImageUrl(data) || '/default-avatar.png';

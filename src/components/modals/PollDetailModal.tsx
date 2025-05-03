@@ -290,7 +290,7 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
       }
       
       
-      const lsp3Manager = new LSP3ProfileManager(upProvider);
+      const lsp3Manager = new LSP3ProfileManager();
       
       for (let i = 0; i < votersArrays.length; i++) {
         for (let j = 0; j < votersArrays[i].length; j++) {
@@ -748,7 +748,7 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
       
       try {
         
-        const lsp3Manager = new LSP3ProfileManager(upProvider); 
+        const lsp3Manager = new LSP3ProfileManager(); 
         const profileData = await lsp3Manager.getProfileData(creatorAddress);
         let profileInfo: ProfileData | null = null;
         
