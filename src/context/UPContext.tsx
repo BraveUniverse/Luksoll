@@ -279,15 +279,15 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
     setError(null); // Clear previous errors
     
     try {
-      // ERC725 provider oluştur
-      const provider = web3.currentProvider;
+      // ERC725 provider olarak doğrudan upProvider'ı kullan
+      // const provider = web3.currentProvider; // Bu satır kaldırıldı
       const config = { ipfsGateway: 'https://api.universalprofile.cloud/ipfs' };
       
       // ERC725 instance oluştur
       const erc725 = new ERC725(
         LSP3ProfileSchema,
         userAddress,
-        provider as any,
+        upProvider as any, // Doğrudan upProvider kullanıldı
         config
       );
       
