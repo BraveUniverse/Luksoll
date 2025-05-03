@@ -68,7 +68,7 @@ export class LSP3ProfileManager {
       if (!provider || isRunningInVercel) {
         console.log('Using direct RPC URL provider instead of browser extension for compatibility');
         // Alternatif RPC URL - LUKSO mainnet
-        const mainnetRpcUrl = 'https://rpc.lukso.gateway.fm';
+        const mainnetRpcUrl = 'https://42.rpc.thirdweb.com';
         provider = mainnetRpcUrl;
       }
 
