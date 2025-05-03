@@ -73,7 +73,7 @@ export class LSP3ProfileManager {
 
       // console.debug('LSP3 Profile data fetching:', address);
 
-      const keysToFetch = [ /* ... burada anahtarlarınız var ... */ ]; 
+      const keysToFetch = [ 'LSP3Profile' ]; 
       console.log("[DEBUG LSP3Profile] Fetching keys:", JSON.stringify(keysToFetch));
 
       // Get profile data
