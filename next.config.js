@@ -12,8 +12,6 @@ const nextConfig = {
       },
     ],
 
-  },
-  // Üretim build'inde console loglarını kaldır
  
   // Build sırasında ESLint hatalarını görmezden gel
   eslint: {
