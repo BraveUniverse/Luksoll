@@ -146,14 +146,15 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
           updateConnected(accounts, _contextAccounts);
           
           
-          if (accounts.length > 0) {
-            const profileData = await loadProfileData(accounts[0]);
-            setProfileData(profileData);
-          }
+          // !!! loadProfileData çağrısı buradan kaldırıldı !!!
+          // if (accounts.length > 0) {
+          //   // Profile data will be loaded via accountsChanged listener or page useEffect
+          // }
         } catch (error) {
           console.error('Error checking accounts:', error);
         }
           
+        // Provider başlatıldıktan SONRA isInitialized'ı set et
         setIsInitialized(true);
         console.log('UP Provider initialized successfully, isInitialized:', true);
       } catch (err: any) {
@@ -163,7 +164,7 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initUPProvider();
-  }, [updateConnected]);
+  }, [updateConnected]); // Bu useEffect sadece bir kere çalışmalı (mount'da)
 
   
   useEffect(() => {
@@ -210,11 +211,16 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
     const accountsChanged = (_accounts: Array<`0x${string}`>) => {
       console.log('Accounts changed:', _accounts);
       updateConnected(_accounts, contextAccounts);
-      
-      
-      if (_accounts.length > 0) {
+
+      // Profil verisini SADECE provider initialize OLDUKTAN SONRA yükle
+      if (isInitialized && _accounts.length > 0) {
+        console.log('[accountsChanged] Provider initialized, loading profile data...');
         loadProfileData(_accounts[0]).then(setProfileData);
-      } else {
+      } else if (!isInitialized) {
+        console.log('[accountsChanged] Provider NOT initialized yet, skipping profile load.');
+      }
+      else {
+        // Hesap yoksa profili temizle
         setProfileData(null);
       }
     };
@@ -255,13 +261,22 @@ export const UPContextProvider = ({ children }: { children: ReactNode }) => {
       upProvider.removeListener('contextAccountsChanged', contextAccountsChanged);
       upProvider.removeListener('chainChanged', chainChanged);
     };
-  }, [upProvider, contextAccounts, updateConnected, web3]);
+  }, [upProvider, contextAccounts, updateConnected, web3, isInitialized]);
 
   // Profil verilerini yükle - LSP3Profile standartını kullanarak
   const loadProfileData = async (userAddress: string): Promise<ProfileData | null> => {
-    if (!web3 || !userAddress) return null;
+    // Fonksiyonun başında provider ve initialized kontrolü
+    if (!upProvider || !isInitialized) {
+      console.warn('[loadProfileData] Aborted: Provider not available or not initialized.');
+      return null;
+    }
+    if (!userAddress) {
+      console.warn('[loadProfileData] Aborted: No user address provided.');
+      return null;
+    }
     
     console.log('Profil verisi yükleniyor:', userAddress);
+    setError(null); // Clear previous errors
     
     try {
       // ERC725 provider oluştur
