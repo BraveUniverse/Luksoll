@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
-  basePath: '/miniapps/luksopoll',
+  basePath: '',
 //  output: 'export', // Statik dışa aktarma KULLANMIYORUZ
 
   images: {
@@ -14,9 +14,7 @@ const nextConfig = {
     // unoptimized: true, // Vercel optimizasyon yapacağı için kaldırılabilir veya kalabilir
   },
   // Üretim build'inde console loglarını kaldır
-  compiler: {
-    removeConsole: true,
-  },
+
   // Build sırasında ESLint hatalarını görmezden gel
   eslint: {
     ignoreDuringBuilds: true,
