@@ -13,10 +13,6 @@ const nextConfig = {
     ],
 
   },
-  // Üretim build'inde console loglarını kaldır
-  compiler: {
-    removeConsole: true,
-  },
   // Build sırasında ESLint hatalarını görmezden gel
   eslint: {
     ignoreDuringBuilds: true,
