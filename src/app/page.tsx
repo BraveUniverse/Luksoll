@@ -108,7 +108,18 @@ export default function Home() {
 
   // Liderlik Tablosu Verilerini Getir
   const fetchLeaderboardData = async () => {
-    if (!contract || !upProvider) return;
+    // Provider'ın varlığını VE hazır olma durumunu kontrol et
+    if (!contract || !upProvider || !isConnected || !isInitialized) {
+        console.log("[Leaderboard] Fetch skipped: Provider/Contract not ready or user not connected.", {
+            hasContract: !!contract,
+            hasProvider: !!upProvider,
+            isConnected: isConnected,
+            isInitialized: isInitialized
+        });
+       return;
+    }
+    
+    // isConnected ve isInitialized true ise devam et
     setLoadingLeaderboard(true);
     try {
       console.log("Leaderboard verisi çekiliyor...");
@@ -258,11 +269,17 @@ export default function Home() {
       connectUP();
     }
     
-    // Kullanıcı bağlandığında istatistikleri VE leaderboard'u getir
-    if (isConnected && contract && address && upProvider) {
+    // Kullanıcı bağlandığında VE provider hazır olduğunda istatistikleri VE leaderboard'u getir
+    if (isConnected && isInitialized && contract && address && upProvider) {
+      console.log("[useEffect] Conditions met, fetching data...");
       fetchUserStats();
       fetchLeaderboardData();
       fetchGlobalStats();
+    } else {
+      // Koşullar karşılanmadığında nedenini logla (opsiyonel debug)
+      console.log("[useEffect] Conditions not met for fetching data.", {
+          isConnected, isInitialized, hasContract: !!contract, hasAddress: !!address, hasProvider: !!upProvider
+      });
     }
   }, [isConnected, isInitialized, connecting, connectUP, address, contract, upProvider]);
 
