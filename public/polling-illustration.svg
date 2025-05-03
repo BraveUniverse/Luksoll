@@ -1,0 +1,93 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="200" cy="200" r="190" fill="#FFCADB" opacity="0.3"/>
+  
+  <!-- Background Graphics -->
+  <circle cx="100" cy="300" r="15" fill="#FF2975" opacity="0.7"/>
+  <circle cx="320" cy="120" r="12" fill="#FF2975" opacity="0.5"/>
+  <circle cx="280" cy="280" r="8" fill="#FF2975" opacity="0.6"/>
+  
+  <!-- Poll Card 1 -->
+  <rect x="90" y="120" width="220" height="140" rx="12" fill="white" stroke="#FF2975" stroke-width="2"/>
+  <rect x="110" y="140" width="180" height="12" rx="3" fill="#FF2975" opacity="0.7"/>
+  <rect x="110" y="160" width="150" height="8" rx="2" fill="#FFCADB"/>
+  <rect x="110" y="176" width="120" height="8" rx="2" fill="#FFCADB"/>
+  
+  <!-- Poll Options -->
+  <rect x="110" y="200" width="180" height="15" rx="4" fill="#FFF0F4" stroke="#FF2975" stroke-width="1"/>
+  <rect x="110" y="200" width="120" height="15" rx="4" fill="#FF2975" opacity="0.2"/>
+  <rect x="115" y="205" width="10" height="10" rx="5" fill="#FF2975"/>
+  <circle cx="120" cy="210" r="3" fill="white"/>
+  
+  <rect x="110" y="225" width="180" height="15" rx="4" fill="#FFF0F4" stroke="#FF2975" stroke-width="1"/>
+  <rect x="115" y="230" width="10" height="10" rx="5" fill="white" stroke="#FF2975" stroke-width="1"/>
+  
+  <!-- Poll Card 2 (slightly tilted) -->
+  <g transform="translate(140, 70) rotate(8)">
+    <rect x="0" y="0" width="220" height="140" rx="12" fill="white" stroke="#FF2975" stroke-width="2"/>
+    <rect x="20" y="20" width="180" height="12" rx="3" fill="#FF2975" opacity="0.7"/>
+    <rect x="20" y="40" width="150" height="8" rx="2" fill="#FFCADB"/>
+    <rect x="20" y="56" width="120" height="8" rx="2" fill="#FFCADB"/>
+    
+    <!-- Poll Options -->
+    <rect x="20" y="80" width="180" height="15" rx="4" fill="#FFF0F4" stroke="#FF2975" stroke-width="1"/>
+    <rect x="20" y="80" width="70" height="15" rx="4" fill="#FF2975" opacity="0.2"/>
+    <rect x="25" y="85" width="10" height="10" rx="5" fill="#FF2975"/>
+    <circle cx="30" cy="90" r="3" fill="white"/>
+    
+    <rect x="20" y="105" width="180" height="15" rx="4" fill="#FFF0F4" stroke="#FF2975" stroke-width="1"/>
+    <rect x="25" y="110" width="10" height="10" rx="5" fill="white" stroke="#FF2975" stroke-width="1"/>
+  </g>
+  
+  <!-- Phone Frame -->
+  <rect x="230" y="150" width="120" height="200" rx="12" fill="#500126"/>
+  <rect x="240" y="170" width="100" height="160" rx="4" fill="white"/>
+  
+  <!-- App Content on Phone -->
+  <rect x="250" y="180" width="80" height="8" rx="2" fill="#FF2975"/>
+  <rect x="250" y="195" width="60" height="5" rx="2" fill="#FFCADB"/>
+  
+  <!-- Mini Poll on Phone -->
+  <rect x="250" y="210" width="80" height="40" rx="4" fill="#FFF0F4" stroke="#FF2975" stroke-width="1"/>
+  <rect x="255" y="215" width="70" height="5" rx="1" fill="#FF2975" opacity="0.7"/>
+  <rect x="255" y="225" width="50" height="4" rx="1" fill="#FFCADB"/>
+  <rect x="255" y="235" width="70" height="5" rx="1" fill="#FFCADB"/>
+  
+  <!-- More Mini Polls on Phone -->
+  <rect x="250" y="260" width="80" height="30" rx="4" fill="#FFF0F4"/>
+  <rect x="250" y="300" width="80" height="30" rx="4" fill="#FFF0F4"/>
+  
+  <!-- Blockchain Connection Lines -->
+  <path d="M270 330 C 220 350, 150 300, 120 250" stroke="#FF2975" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M290 330 C 350 320, 320 220, 280 180" stroke="#FF2975" stroke-width="1" stroke-dasharray="3 3"/>
+  <circle cx="120" cy="250" r="5" fill="#FF2975"/>
+  <circle cx="280" cy="180" r="5" fill="#FF2975"/>
+  
+  <!-- Logo / Brand -->
+  <circle cx="200" cy="350" r="20" fill="#FF2975" opacity="0.8"/>
+  <circle cx="200" cy="350" r="10" fill="white"/>
+  
+  <!-- Dynamic elements -->
+  <g transform="translate(315, 120)">
+    <circle cx="0" cy="0" r="15" fill="#FF2975" opacity="0.1">
+      <animate attributeName="r" values="15;20;15" dur="3s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="8" fill="#FF2975" opacity="0.3">
+      <animate attributeName="r" values="8;12;8" dur="3s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="4" fill="#FF2975" opacity="0.7">
+      <animate attributeName="r" values="4;6;4" dur="3s" repeatCount="indefinite" />
+    </circle>
+  </g>
+  
+  <g transform="translate(100, 80)">
+    <circle cx="0" cy="0" r="12" fill="#FF2975" opacity="0.1">
+      <animate attributeName="r" values="12;15;12" dur="4s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="6" fill="#FF2975" opacity="0.3">
+      <animate attributeName="r" values="6;9;6" dur="4s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="0" cy="0" r="3" fill="#FF2975" opacity="0.7">
+      <animate attributeName="r" values="3;5;3" dur="4s" repeatCount="indefinite" />
+    </circle>
+  </g>
+</svg> 

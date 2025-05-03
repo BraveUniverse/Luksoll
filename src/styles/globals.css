@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fff0f4;
+  --card: #FFFFFF;
+  --primary: #FF2975;
+  --primary-dark: #500126;
+  --accent: #ed1169;
+  --text-primary: #500126;
+  --text-secondary: #ffe2ea;
+  --divider: #E2E8F0;
+  
+  /* LUKSO temaya uygun renk paleti */
+  --lukso-purple: #7B46F6;
+  --lukso-purple-light: #9672F8;
+  --lukso-purple-dark: #5A2CD4;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  background-color: var(--background);
+  color: var(--text-primary);
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* Spinner animasyonu */
+@keyframes spinner {
+  to {transform: rotate(360deg);}
+}
+
+.spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0 auto;
+  border: 0.25rem solid var(--lukso-purple-light);
+  border-top-color: var(--lukso-purple);
+  border-radius: 50%;
+  animation: spinner .6s linear infinite;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#ff2975] hover:bg-[#ed1169] text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2975] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply border-2 border-[#ff2975] text-[#ff2975] hover:bg-[#fff0f4] font-medium py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2975] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-tertiary {
+    @apply text-[#ff2975] hover:underline font-medium transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-[#ff2975] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-warning {
+    @apply bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-lukso {
+    @apply bg-[#7B46F6] hover:bg-[#5A2CD4] text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#7B46F6] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .card {
+    @apply bg-card rounded-xl p-5 shadow-md backdrop-blur-sm border border-white/20;
+  }
+
+  .input-field {
+    @apply w-full border-2 border-divider focus:border-[#ff2975] rounded-lg px-4 py-2 outline-none bg-white transition-colors duration-200 focus:ring-2 focus:ring-[#ff2975]/20;
+  }
+
+  .poll-option {
+    @apply border-2 border-divider hover:border-[#ff2975] hover:bg-[#fff0f4] rounded-lg p-3 cursor-pointer transition-all duration-200;
+  }
+
+  .poll-option-selected {
+    @apply border-2 border-[#ff2975] bg-[#fff0f4] rounded-lg p-3 cursor-pointer transition-all duration-200;
+  }
+  
+  .form-input {
+    @apply w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-[#ff2975] focus:ring-2 focus:ring-[#ff2975]/20;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .badge {
+    @apply px-2 py-1 text-xs font-medium rounded-full;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .badge-warning {
+    @apply bg-amber-100 text-amber-800;
+  }
+
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .badge-lukso {
+    @apply bg-[#7B46F6]/20 text-[#7B46F6];
+  }
+
+  /* Glassmorphism stil */
+  .glass {
+    @apply bg-white/10 backdrop-blur-sm border border-white/20 shadow-lg;
+  }
+
+  /* Anket ilerleme çubuğu */
+  .poll-progress {
+    @apply h-2 rounded-full bg-gray-200 overflow-hidden;
+  }
+
+  .poll-progress-bar {
+    @apply h-full bg-[#ff2975];
+  }
+
+  /* Kontrat adresi vb. formatter */
+  .address {
+    @apply font-mono text-xs bg-gray-100 px-2 py-1 rounded break-all;
+  }
+}
+
+/* LUKSO temalı stil */
+.lukso-theme {
+  --primary: #7B46F6;
+  --primary-dark: #5A2CD4;
+  --accent: #9672F8;
+  --background: #f9f6fe;
+  --text-primary: #2C1B62;
+}
+
+/* Mobil görünüm iyileştirmeleri */
+@media (max-width: 640px) {
+  .card {
+    @apply p-3;
+  }
+} 
