@@ -60,23 +60,24 @@ export class LSP3ProfileManager {
         return null;
       }
 
-      let provider: UPClientProvider | null = this.provider;
-      let config = { ...this.erc725Config }; // Başlangıç config'i kopyala
+      let providerOrRpcUrl: UPClientProvider | string | null = this.provider;
+      let config = this.erc725Config; // Use the original config
       const isRunningInVercel = typeof window !== 'undefined' && window.location?.hostname.includes('vercel.app');
 
-      // Eğer provider yoksa veya Vercel ortamındaysak RPC URL'yi config'e ekle
-      if (!provider || isRunningInVercel) {
-        console.log('Using direct RPC URL via config for ERC725 in Vercel environment');
-        config.rpcUrl = 'https://42.rpc.thirdweb.com';
-        provider = null; // Provider'ı null yap, config'deki rpcUrl kullanılsın
+      // Eğer provider yoksa veya Vercel ortamındaysak RPC URL kullan
+      if (!providerOrRpcUrl || isRunningInVercel) {
+        console.log('Using direct RPC URL as provider for ERC725 in Vercel environment');
+        providerOrRpcUrl = 'https://42.rpc.thirdweb.com'; // Assign RPC URL to the variable passed as provider
       }
 
       // Create ERC725 instance
+      // Pass provider OR RPC URL as the 3rd argument
+      // Pass the IPFS config as the 4th argument
       const erc725 = new ERC725(
         LSP3ProfileSchema as any,
         address as `0x${string}`,
-        provider, // Varsa UP Provider'ı kullan, yoksa null
-        config    // IPFS gateway ve gerekirse RPC URL'yi içeren config
+        providerOrRpcUrl,
+        config
       );
 
       const keysToFetch = [ 'LSP3Profile' ]; 
