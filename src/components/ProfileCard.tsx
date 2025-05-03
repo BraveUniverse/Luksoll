@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import useLSP3Profile from '@/hooks/useLSP3Profile';
 import { UPClientProvider } from '@lukso/up-provider';
 import { ProfileData } from '@/types';
 import Link from 'next/link';
+import { formatIPFSUrl } from '@/utils/ipfs';
 
 interface ProfileCardProps {
   profile: ProfileData | null;
@@ -21,6 +21,44 @@ interface ProfileCardProps {
   showStatus?: boolean;
 }
 
+const shortenAddress = (addr: string | null): string => {
+  if (!addr) return '';
+  if (addr.length < 10) return addr;
+  return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+};
+
+const getImageUrlFromProfile = (profile: ProfileData | null): string => {
+  if (!profile) return '/default-avatar.png';
+
+  if (profile.avatar && profile.avatar.length > 0) {
+    const avatarElement = profile.avatar[0];
+    if (avatarElement && 
+        typeof avatarElement === 'object' && 
+        avatarElement !== null &&
+        'url' in avatarElement && 
+        typeof (avatarElement as any).url === 'string') {
+      return formatIPFSUrl((avatarElement as any).url);
+    }
+  }
+
+  if (profile.profileImage && profile.profileImage.length > 0) {
+    const imageElement = profile.profileImage[0];
+    if (imageElement) {
+      if (typeof imageElement === 'object' && 
+          imageElement !== null &&
+          'url' in imageElement && 
+          typeof (imageElement as any).url === 'string') {
+         return formatIPFSUrl((imageElement as any).url);
+      }
+      if (typeof imageElement === 'string') {
+        return formatIPFSUrl(imageElement);
+      }
+    }
+  }
+
+  return '/default-avatar.png';
+};
+
 const ProfileCard: React.FC<ProfileCardProps> = ({ 
   profile, 
   address, 
@@ -30,21 +68,17 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   loadingStats,
   showStatus = true 
 }) => {
-  const { 
-    profileImageUrl,
-    displayName
-  } = useLSP3Profile(address, provider);
+  const displayName = profile?.name || shortenAddress(address);
+  const derivedProfileImageUrl = getImageUrlFromProfile(profile);
   
   const [imgError, setImgError] = useState(false);
 
-  // Resim yükleme hatası
   const handleImageError = () => {
     console.log('ProfileCard: Resim yükleme hatası, varsayılan avatar kullanılıyor');
     setImgError(true);
   };
 
-  // Gerçek profil resmi URL'si
-  const imageToShow = imgError ? '/default-avatar.png' : (profileImageUrl || '/default-avatar.png');
+  const imageToShow = imgError ? '/default-avatar.png' : (derivedProfileImageUrl || '/default-avatar.png');
 
   return (
     <motion.div 
@@ -69,7 +103,9 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       </div>
       
       <div className="flex-1">
-        <h2 className="text-xl font-heading font-bold text-primary-900 truncate">{displayName}</h2>
+        <h2 className="text-xl font-heading font-bold text-primary-900 truncate" title={profile?.name ? `${profile.name} (${shortenAddress(address)})` : address || ''}>
+          {displayName}
+        </h2>
         <p className="text-sm text-primary-600">Universal Profile</p>
       </div>
       

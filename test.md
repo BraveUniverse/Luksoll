@@ -13,33 +13,6 @@ Lütfen aşağıdaki senaryoları sırasıyla veya bağımsız olarak deneyin ve
 
 ---
 
-### 1. Anket Oluşturma
-
-**1.1. Ücretsiz Anket (Gereksinimsiz)**
-    *   **Açıklama:** Herkesin oy kullanabileceği, ödülsüz bir anket oluşturma.
-    *   **Adımlar:**
-        1.  `Create Poll` butonuna tıkla.
-        2.  Soru, açıklama ve en az 2 seçenek gir.
-        3.  Süreyi ayarla (örn: 1 saat).
-        4.  `Voting Requirements` bölümünde `None` seçili kalsın.
-        5.  `Rewards` bölümünde `Enable Rewards` seçeneği kapalı kalsın.
-        6.  `Create Poll` butonuna tıkla ve cüzdan ile işlemi onayla.
-    *   **Beklenen Sonuç:** Anket başarıyla oluşturulmalı ve ana sayfada görünmeli. İşlem için sadece gaz ücreti alınmalı.
-    *   **Sonuç:**
-
-**1.2. Ücretli Anket (Token Sahibi Gereksinimli, Ödülsüz)**
-    *   **Açıklama:** Sadece belirli bir LSP7 token'ına sahip kullanıcıların oy kullanabileceği, ödülsüz bir anket oluşturma. (Kontrat bu durumda ek ücret alıyor olabilir)
-    *   **Adımlar:**
-        1.  `Create Poll` butonuna tıkla.
-        2.  Soru, açıklama ve en az 2 seçenek gir.
-        3.  Süreyi ayarla.
-        4.  `Voting Requirements` bölümünde `LSP7 Token Holder` seç.
-        5.  Geçerli bir LSP7 token adresi ve minimum miktar gir (örn: 1 LYX).
-        6.  `Rewards` bölümünde `Enable Rewards` seçeneği kapalı kalsın.
-        7.  `Create Poll` butonuna tıkla. Arayüzde gösterilen işlem ücretini kontrol et (gaz + varsa kontrat ücreti).
-        8.  Cüzdan ile işlemi onayla.
-    *   **Beklenen Sonuç:** Anket başarıyla oluşturulmalı. İşlem için gaz ücreti + (varsa) kontratın belirlediği gereksinim ücreti alınmalı.
-    *   **Sonuç:**
 
 **1.3. Ödüllü Anket (LYX Ödüllü, Gereksinimsiz)**
     *   **Açıklama:** Herkesin oy kullanabileceği, oy başına LYX ödülü olan bir anket oluşturma.
