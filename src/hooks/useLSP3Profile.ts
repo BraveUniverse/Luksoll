@@ -69,7 +69,7 @@ export class LSP3ProfileManager {
       if (!providerOrRpc || isRunningInVercel) {
         console.log('Using LUKSO mainnet RPC for ERC725');
         // LUKSO resmi mainnet RPC URL
-        providerOrRpc = 'https://rpc.lukso.network';
+        providerOrRpc = 'https://42.rpc.thirdweb.com';
       }
 
       // LUKSO dokümantasyonuna göre erc725js oluşturma
