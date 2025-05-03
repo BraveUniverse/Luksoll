@@ -68,8 +68,8 @@ export class LSP3ProfileManager {
       // Eğer provider yoksa veya Vercel ortamındaysak, LUKSO RPC URL kullan
       if (!providerOrRpc || isRunningInVercel) {
         console.log('Using LUKSO mainnet RPC for ERC725');
-        // LUKSO mainnet RPC - resmi dokümanla uyumlu
-        providerOrRpc = 'https://42.rpc.thirdweb.com';
+        // LUKSO resmi mainnet RPC URL
+        providerOrRpc = 'https://rpc.lukso.network';
       }
 
       // LUKSO dokümantasyonuna göre erc725js oluşturma
@@ -82,14 +82,15 @@ export class LSP3ProfileManager {
         }
       );
 
-      console.log("[DEBUG LSP3Profile] Fetching profile data for:", address);
+      console.log("[DEBUG LSP3Profile] Fetching profile data with ERC725 for:", address);
+      console.log("[DEBUG LSP3Profile] Using provider:", typeof providerOrRpc === 'string' ? providerOrRpc : 'Browser Provider');
       
       // LUKSO dokümantasyonundaki gibi fetchData kullanımı
       const profileData = await erc725js.fetchData('LSP3Profile');
-      console.log("[DEBUG LSP3Profile] Profile data fetched:", 
-                  profileData ? "success" : "null");
+      console.log("[DEBUG LSP3Profile] Profile data fetched successfully");
       
       if (!profileData?.value) {
+        console.log("[DEBUG LSP3Profile] No profile data value found");
         return null;
       }
 
@@ -98,7 +99,22 @@ export class LSP3ProfileManager {
       return formattedProfile;
     } catch (error) {
       console.error('Error getting profile data:', error);
-      // Hata durumunda basit bir profil dönelim
+      
+      // Hex uzunluğu hatası için özel işlem
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('odd length') || errorMsg.includes('unmarshal hex')) {
+        console.log('[DEBUG LSP3Profile] Odd length hex error detected, returning fallback profile');
+        
+        // Fallback profil
+        return {
+          name: address.substring(0, 6) + '...' + address.substring(address.length - 4),
+          description: 'Profile data could not be loaded due to RPC error',
+          tags: ['error'],
+          links: []
+        };
+      }
+      
+      // Diğer hatalar için genel fallback
       return {
         name: 'Profil Yüklenemedi',
         description: 'Profil verisi alınırken bir hata oluştu',
