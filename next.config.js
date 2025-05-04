@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
-  basePath: '/miniapps/luksopoll',
-  output: 'export', // Statik dışa aktarma KULLANMIYORUZ
-  swcMinify: false, // SWC Minification'ı devre dışı bırak (Bunu şimdilik tutalım)
+  basePath: '', 
+  swcMinify: false, 
 
   // --> YENİ AYAR BAŞLANGIÇ <--
   transpilePackages: [
