@@ -683,8 +683,9 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
 
       
       
-      const pollEndedOrTargetReached = !Boolean(detailsResult.isActive) || (Number(detailsResult.targetVoterCount || 0) > 0 && totalVotes >= Number(detailsResult.targetVoterCount));
-      const canClaimReward = Boolean(detailsResult.rewardsEnabled) && userVoteData.hasVoted && !userVoteData.hasClaimedReward && pollEndedOrTargetReached;
+      // Calculate canClaimReward without checking if the poll has ended
+      // const pollEndedOrTargetReached = !Boolean(detailsResult.isActive) || (Number(detailsResult.targetVoterCount || 0) > 0 && totalVotes >= Number(detailsResult.targetVoterCount));
+      const canClaimReward = Boolean(detailsResult.rewardsEnabled) && userVoteData.hasVoted && !userVoteData.hasClaimedReward; // Removed pollEndedOrTargetReached check
       
       
       const formattedPoll: Omit<PollDetail, 'creatorProfile'> = { 
