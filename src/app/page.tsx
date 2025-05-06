@@ -174,7 +174,7 @@ export default function Home() {
                 
                 // Fetch using the manager and context web3
                 const lsp3Manager = new LSP3ProfileManager(); 
-                const data = await lsp3Manager.getProfileData(user.address);
+                const data = await lsp3Manager.getProfileData(user.address, web3);
                  
                 if (data) {
                     console.log(`[Leaderboard] Network fetch SUCCESS for ${user.address}`);

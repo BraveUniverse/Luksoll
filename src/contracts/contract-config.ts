@@ -2490,9 +2490,23 @@ function formatIPFSUrl(url: any): string {
 interface TokenMetadataLSP {
   name: string;
   symbol: string;
-  decimals?: bigint;
+  decimals?: number; 
   iconUrl?: string;
 }
+
+const LSP7_DECIMALS_ABI = [{
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
+        {
+            "internalType": "uint8",
+            "name": "",
+            "type": "uint8"
+        }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+}];
 
 /**
  * Fetches LSP4 metadata for a given token address using ERC725.js.
@@ -2501,117 +2515,87 @@ interface TokenMetadataLSP {
  * @returns A promise resolving to an object with name, symbol, decimals, and iconUrl, or null if error.
  */
 export const fetchTokenMetadataFromLSP = async (
-    provider: any, // Can be EIP1193 provider
+    provider: any, 
     tokenAddress: string
 ): Promise<TokenMetadataLSP | null> => {
-    if (!provider || !tokenAddress) {
-        console.error("fetchTokenMetadataFromLSP: Provider or tokenAddress missing.");
+    if (!provider || !tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
         return null;
     }
 
+    const web3 = new Web3(provider);
+    let tokenName = 'Unknown Token';
+    let tokenSymbol = '???';
+    let tokenDecimals: number | undefined = undefined; 
+    let iconUrl: string | undefined = undefined;
+    const DEFAULT_DECIMALS = 18;
+    const IPFS_GATEWAY = 'https://api.universalprofile.cloud/ipfs/'; // Define gateway for clarity
+
     try {
-        const erc725 = new ERC725(
-            LSP4Schema as any,
-            tokenAddress,
-            provider,
-            { ipfsGateway: IPFS_GATEWAYS[0] }
-        );
-
-        console.log(`[fetchTokenMetadataFromLSP] Fetching metadata for: ${tokenAddress}`);
-
-        const [nameResult, symbolResult, metadataResult, tokenTypeResult] = await Promise.allSettled([
-            erc725.getData('LSP4TokenName'),
-            erc725.getData('LSP4TokenSymbol'),
-            erc725.getData('LSP4Metadata'),
-            erc725.getData('LSP4TokenType') // Needed for decimals for LSP7
-        ]);
-
-        const name = nameResult.status === 'fulfilled' ? nameResult.value?.value?.toString() : 'Unknown Token';
-        const symbol = symbolResult.status === 'fulfilled' ? symbolResult.value?.value?.toString() : '???';
-
-        // Determine decimals - LSP7 usually has decimals, LSP8 doesn't store it this way.
-        let decimals: bigint | undefined = undefined;
-        // Assuming LSP7 tokens store decimals implicitly (usually 18) or maybe via another standard?
-        // LSP8 (NFTs) don't typically have decimals.
-        // If LSP4TokenType is 0 (Token), assume 18 decimals as a fallback.
-        // A more robust solution might involve checking for an explicit 'decimals()' function on the contract.
-        if (tokenTypeResult.status === 'fulfilled' && Number(tokenTypeResult.value?.value) === 0) {
-           decimals = 18n; // Default assumption for LSP7 fungible tokens
-           // TODO: Consider adding a try/catch call to contract.methods.decimals().call() here for accuracy
-        }
-
-        let iconUrl: string | undefined = undefined;
-        if (metadataResult.status === 'fulfilled' && metadataResult.value?.value) {
-            try {
-                const metadata = metadataResult.value.value as any; // Type assertion needed
-                 console.log(`[fetchTokenMetadataFromLSP] Raw LSP4Metadata for ${tokenAddress}:`, JSON.stringify(metadata, null, 2)); // Log raw metadata
-
-                 // --- START: Verifiable URI Check & Fetch --- 
-                 let finalMetadataSource = metadata; // Start with the directly fetched metadata
-
-                 if (metadata?.url && typeof metadata.url === 'string' && metadata.url.startsWith('ipfs://')) {
-                     try {
-                        const formattedUrl = formatIPFSUrl(metadata.url);
-                        console.log(`[fetchTokenMetadataFromLSP] Fetching secondary JSON from verified URL: ${formattedUrl}`);
-                        const response = await fetch(formattedUrl);
-                        if (response.ok) {
-                            const contentType = response.headers.get('content-type');
-                            if (contentType && contentType.includes('application/json')) {
-                                 finalMetadataSource = await response.json(); // Use the fetched JSON as the source
-                                 console.log(`[fetchTokenMetadataFromLSP] Fetched secondary JSON content:`, JSON.stringify(finalMetadataSource, null, 2));
-                            } else {
-                                console.warn(`[fetchTokenMetadataFromLSP] Content type from ${formattedUrl} is not JSON: ${contentType}`);
-                            }
-                        } else {
-                             console.warn(`[fetchTokenMetadataFromLSP] Failed to fetch ${formattedUrl}, status: ${response.status}`);
-                        }
-                     } catch (fetchError) {
-                         console.error(`[fetchTokenMetadataFromLSP] Error fetching or parsing secondary JSON from ${metadata.url}:`, fetchError);
-                     }
-                 }
-                 // --- END: Verifiable URI Check & Fetch ---
-
-                // Now use finalMetadataSource to find icon/image
-                if (finalMetadataSource && typeof finalMetadataSource === 'object') {
-                    let potentialIcon = '';
-                    let potentialImage = '';
-
-                    // Look in standard places within the final source
-                    if (finalMetadataSource.icon) potentialIcon = formatIPFSUrl(finalMetadataSource.icon);
-                    if (finalMetadataSource.images?.[0]) potentialImage = formatIPFSUrl(finalMetadataSource.images[0].url || finalMetadataSource.images[0]);
-                    // Check specifically within LSP4Metadata sub-object if it exists
-                    if (finalMetadataSource.LSP4Metadata) {
-                        if (finalMetadataSource.LSP4Metadata.icon && !potentialIcon) potentialIcon = formatIPFSUrl(finalMetadataSource.LSP4Metadata.icon);
-                        if (finalMetadataSource.LSP4Metadata.images?.[0] && !potentialImage) potentialImage = formatIPFSUrl(finalMetadataSource.LSP4Metadata.images[0].url || finalMetadataSource.LSP4Metadata.images[0]);
-                    }
-                    // Also check LSP3Profile Metadata sub-object (sometimes used)
-                    if (finalMetadataSource.LSP3Profile) {
-                         if (finalMetadataSource.LSP3Profile.profileImage?.[0] && !potentialImage) potentialImage = formatIPFSUrl(finalMetadataSource.LSP3Profile.profileImage[0].url || finalMetadataSource.LSP3Profile.profileImage[0]);
-                         if (finalMetadataSource.LSP3Profile.backgroundImage?.[0] && !potentialImage) potentialImage = formatIPFSUrl(finalMetadataSource.LSP3Profile.backgroundImage[0].url || finalMetadataSource.LSP3Profile.backgroundImage[0]); // Less likely but check
-                    }
-
-                    // Choose icon or image based on type (LSP7=icon priority, LSP8=image priority)
-                    const isLikelyNFT = tokenTypeResult.status === 'fulfilled' && Number(tokenTypeResult.value?.value) === 2;
-                    iconUrl = isLikelyNFT ? (potentialImage || potentialIcon) : (potentialIcon || potentialImage);
+        try {
+            const tokenContract = new web3.eth.Contract(LSP7_DECIMALS_ABI as any, tokenAddress);
+            if (tokenContract && tokenContract.methods && typeof tokenContract.methods.decimals === 'function') {
+                const decimalsResult = await tokenContract.methods.decimals().call();
+                if (decimalsResult !== null && decimalsResult !== undefined && !isNaN(Number(decimalsResult))) {
+                    tokenDecimals = Number(decimalsResult);
+                } else {
+                    console.warn(`Decimals call for ${tokenAddress} returned invalid value: ${decimalsResult}.`);
                 }
-            } catch (iconError) {
-                console.warn(`[fetchTokenMetadataFromLSP] Error processing LSP4Metadata for ${tokenAddress}:`, iconError);
+            } else {
+                console.warn(`Could not create contract or decimals method not found for ${tokenAddress}.`);
             }
+        } catch (e) {
+            console.warn(`Could not fetch decimals directly for ${tokenAddress}:`, e);
         }
 
-        console.log(`[fetchTokenMetadataFromLSP] Result for ${tokenAddress}: Name=${name}, Symbol=${symbol}, Decimals=${decimals}, Icon=${iconUrl}`);
+        const erc725Instance = new ERC725(LSP4Schema as any[], tokenAddress, provider, {
+            ipfsGateway: IPFS_GATEWAY
+        });
+
+        const metadata = await erc725Instance.fetchData(['LSP4TokenName', 'LSP4TokenSymbol', 'LSP4Metadata']);
+
+        metadata.forEach(item => {
+            if (item.name === 'LSP4TokenName' && typeof item.value === 'string') {
+                tokenName = item.value;
+            } else if (item.name === 'LSP4TokenSymbol' && typeof item.value === 'string') {
+                tokenSymbol = item.value;
+            } else if (item.name === 'LSP4Metadata' && item.value && typeof item.value === 'object') {
+                // Check if item.value is not null and is an object that might contain LSP4Metadata
+                const metaValue = item.value as any; // Use 'any' carefully or define a more specific type
+                if (metaValue.LSP4Metadata && typeof metaValue.LSP4Metadata === 'object' && metaValue.LSP4Metadata.icon && Array.isArray(metaValue.LSP4Metadata.icon) && metaValue.LSP4Metadata.icon.length > 0) {
+                    const firstIcon = metaValue.LSP4Metadata.icon[0] as any;
+                    if (firstIcon && typeof firstIcon.url === 'string') {
+                        let rawIconUrl = firstIcon.url;
+                        if (rawIconUrl.startsWith('ipfs://')) {
+                            iconUrl = `${IPFS_GATEWAY}${rawIconUrl.substring(7)}`;
+                        } else {
+                            iconUrl = rawIconUrl;
+                        }
+                    }
+                }
+            }
+        });
+        
+        if (tokenDecimals === undefined) {
+            console.warn(`Decimals for ${tokenAddress} is undefined after direct call and LSP4. Defaulting to ${DEFAULT_DECIMALS}.`);
+            tokenDecimals = DEFAULT_DECIMALS;
+        }
 
         return {
-            name: name || 'Unknown Token', // Ensure non-empty name
-            symbol: symbol || '???',     // Ensure non-empty symbol
-            decimals,
-            iconUrl,
+            name: tokenName,
+            symbol: tokenSymbol,
+            decimals: tokenDecimals,
+            iconUrl: iconUrl,
         };
 
     } catch (error) {
-        console.error(`[fetchTokenMetadataFromLSP] Error fetching metadata for ${tokenAddress}:`, error);
-        return null;
-	}
+        console.error(`Error fetching token metadata for ${tokenAddress}:`, error);
+        return {
+            name: 'Error Token', 
+            symbol: 'ERR',
+            decimals: DEFAULT_DECIMALS,
+            iconUrl: undefined,
+        };
+    }
 }; 
 
 /**

@@ -77,7 +77,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ userAddress, onClose,
         try {
             // Initialize manager without args, get web3 from context
             const lsp3Manager = new LSP3ProfileManager(); 
-            const data = await lsp3Manager.getProfileData(userAddress); // Remove web3 argument
+            const data = await lsp3Manager.getProfileData(userAddress, web3); // Pass web3
             let profileInfo: ProfileData | null = null;
             if (data) {
                 let imageUrl = lsp3Manager.getProfileImageUrl(data) || '/default-avatar.png';
@@ -103,7 +103,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({ userAddress, onClose,
         } finally {
             setIsLoadingProfile(false);
         }
-    }, [upProvider, userAddress]);
+    }, [upProvider, userAddress, web3]);
 
 
     const fetchFollowStats = useCallback(async () => {
