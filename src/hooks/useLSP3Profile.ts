@@ -52,39 +52,82 @@
      };
    }
  
-   // Get profile data using fetchData and public RPC URL
-   async getProfileData(address: string): Promise<ProfileData | null> {
+   // Get profile data using getData and manual IPFS fetch
+   async getProfileData(address: string, web3: Web3 | null): Promise<ProfileData | null> {
      try {
        if (!address || !address.startsWith('0x')) {
          console.warn('Invalid address provided to getProfileData:', address);
          return null;
        }
  
-       // Create ERC725 instance using public RPC URL (eskikod approach)
-       const PUBLIC_RPC_URL = 'https://rpc.mainnet.lukso.network';
+       // Check for web3 instance passed from the hook
+       if (!web3 || !web3.currentProvider) {
+         console.warn('No web3 instance or currentProvider provided to getProfileData');
+         return null;
+       }
+ 
+       // Create ERC725 instance using web3.currentProvider
        const erc725 = new ERC725(
          LSP3ProfileSchema as any,
          address as `0x${string}`,
-         PUBLIC_RPC_URL, // Use public RPC URL string as provider
+         web3.currentProvider as SupportedProviders<EthExecutionAPI>, // Use passed web3 provider
          this.erc725Config // Pass config
        );
  
-       console.debug('LSP3 Profile data fetching (using fetchData):', address);
+       console.debug('LSP3 Profile data fetching (using getData):', address);
  
-       // 1. Get the decoded profile data directly using fetchData
-       const decodedProfileMetadata = await erc725.fetchData('LSP3Profile');
+       // 1. Get the raw data, which should contain the IPFS link metadata
+       const rawProfileData = await erc725.getData('LSP3Profile');
        
-       // fetchData returns the resolved data directly inside 'value'
-       const profileValue = decodedProfileMetadata?.value as any;
- 
        // Check if we have the LSP3Profile data inside the value
-       if (!profileValue || !profileValue.LSP3Profile) {
-         console.debug('Fetched data does not contain LSP3Profile key or value is null:', address, decodedProfileMetadata);
+       const profileValue = rawProfileData?.value as any; // Use 'as any' for simplicity after check
+       if (!profileValue || typeof profileValue !== 'object' || !('url' in profileValue) || typeof profileValue.url !== 'string') {
+         console.debug('Profile data not found or value is not in expected format (URLDataWithHash):', address, rawProfileData);
          return null; // No valid IPFS link found
        }
        
+       // 2. Fetch the JSON content from the IPFS URL
+       const ipfsUrl = profileValue.url; // Now safe to access .url
+       let jsonUrl = ipfsUrl;
+       if (jsonUrl.startsWith('ipfs://')) {
+         jsonUrl = `${PRIMARY_IPFS_GATEWAY}${jsonUrl.slice(7)}`;
+       } else if (!jsonUrl.startsWith('http://') && !jsonUrl.startsWith('https://')) {
+         // Handle cases where it might be just the hash? Unlikely for LSP3Profile but safe fallback.
+         console.warn("Profile URL is not IPFS or HTTP(S), attempting to use gateway:", jsonUrl);
+         jsonUrl = `${PRIMARY_IPFS_GATEWAY}${jsonUrl}`;
+       }
+       
+       console.debug("Fetching metadata from:", jsonUrl);
+       const response = await fetch(jsonUrl, {
+         method: 'GET',
+         headers: { 'Accept': 'application/json' },
+         mode: 'cors', // Ensure CORS is handled if fetching from different origin
+         cache: 'no-cache' // Avoid stale cache issues
+       });
+       
+       if (!response.ok) {
+         // Try fallback gateways? For now, just log error.
+         console.error(`Failed to fetch profile metadata from ${jsonUrl}. Status: ${response.status}`);
+         throw new Error(`HTTP error! Status: ${response.status}`);
+       }
+       
+       const responseText = await response.text();
+       let metadata;
+       try {
+         metadata = JSON.parse(responseText);
+       } catch (parseError) {
+         console.error("Failed to parse profile metadata JSON:", responseText, parseError);
+         throw new Error("Failed to parse profile metadata JSON");
+       }
+       
+       // 3. Check if the fetched JSON has the LSP3Profile key
+       if (!metadata || !metadata.LSP3Profile) {
+         console.debug('Fetched metadata does not contain LSP3Profile key:', address, metadata);
+         return null;
+       }
+ 
        // 4. Format the LSP3Profile data from the fetched JSON
-       const formattedProfile = this.formatProfileData(profileValue.LSP3Profile);
+       const formattedProfile = this.formatProfileData(metadata.LSP3Profile); // Pass only the LSP3Profile part
        console.debug('Profile fetched and formatted:', formattedProfile.name);
        
        return formattedProfile;
@@ -227,18 +270,16 @@
  
  // Hook implementation
  const useLSP3Profile = (address: string | null) => { // Hook no longer takes provider/web3 args
-   // const { web3 } = useUP(); // We don't need context web3 if manager uses public RPC
+   const { web3 } = useUP(); // Get web3 from context
    const [profile, setProfile] = useState<ProfileData | null>(null);
    const [loading, setLoading] = useState<boolean>(false);
    const [error, setError] = useState<Error | null>(null);
    const [profileImageUrl, setProfileImageUrl] = useState<string>('');
  
    useEffect(() => {
-     // Only depend on address
-     if (!address) {
-       // console.log('useLSP3Profile: No address provided');
-       setProfile(null); // Clear profile if address is null
-       setProfileImageUrl('');
+     // Depend on address and the web3 instance from context
+     if (!address || !web3) {
+       // console.log('useLSP3Profile: No address or web3 instance from context', { address, web3Exists: !!web3 });
        return;
      }
  
@@ -251,7 +292,7 @@
          
          // LSP3ProfileManager kullanarak profil çek
          const lsp3Manager = new LSP3ProfileManager(); // Manager no longer needs constructor args
-         const profileData = await lsp3Manager.getProfileData(address); // Call method without web3
+         const profileData = await lsp3Manager.getProfileData(address, web3);
          
          if (profileData) {
            // console.log('useLSP3Profile: Profile fetched successfully:', profileData);
@@ -276,7 +317,7 @@
      };
  
      fetchProfile();
-   }, [address]); // Only depend on address
+   }, [address, web3]); // Update dependencies
  
    // Helper function to shorten address (e.g., 0x1234...5678)
    const shortenAddress = (addr: string | null): string => {
