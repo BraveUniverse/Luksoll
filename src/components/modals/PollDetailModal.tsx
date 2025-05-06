@@ -654,7 +654,7 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
         creator: details.creator,
         creatorProfile: creatorProfileData,
         hasClaimedReward: userVoteInfo.hasClaimedReward,
-        canClaimReward: details.rewardsEnabled && userVoteInfo.hasVoted && !userVoteInfo.hasClaimedReward && isPollEnded && details.isActive,
+        canClaimReward: details.rewardsEnabled && userVoteInfo.hasVoted && !userVoteInfo.hasClaimedReward,
         requirementType: Number(details.votingRequirement),
         requiredTokenAddress: details.requiredTokenAddress,
         requiredMinTokenAmount: details.requiredMinTokenAmount.toString(),
