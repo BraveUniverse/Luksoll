@@ -240,14 +240,29 @@ const PollListModal: React.FC<PollListModalProps> = ({ onClose, onPollSelect }) 
       let decimals = 18; // Default to 18 decimals
 
       // Fetch decimals separately using specific LSP7 call
-      try {
-          const tokenContract = new web3.eth.Contract(LSP7_DECIMALS_ABI as any, assetAddress);
-          const decimalsResult = await tokenContract.methods.decimals().call();
-          decimals = Number(decimalsResult); // Convert uint8 result to number
-      } catch (decError) {
-          console.warn(`Could not fetch decimals for ${assetAddress}, defaulting to 18:`, decError);
-          // Keep default 18 if decimals call fails
+   try {
+    const tokenContract = new web3.eth.Contract(
+      LSP7_DECIMALS_ABI as any,
+      assetAddress
+    );
+
+    if (tokenContract?.methods?.decimals) {
+      const decimalsResult = await tokenContract.methods.decimals().call();
+      const parsedDecimals = Number(decimalsResult);
+      if (!isNaN(parsedDecimals)) {
+        decimals = parsedDecimals;
+      } else {
+        console.warn(`Parsed decimals is NaN for ${assetAddress}, using default 18`);
       }
+    } else {
+      console.warn(`'decimals' method not available on contract ${assetAddress}, using default 18`);
+    }
+  } catch (decError) {
+    console.warn(
+      `Could not fetch decimals for ${assetAddress}, defaulting to 18:`,
+      decError
+    );
+  }
 
       // Extract token name
       const nameData = fetchedData.find(d => d.name === 'LSP4TokenName');
