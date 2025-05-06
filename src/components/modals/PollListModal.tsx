@@ -67,6 +67,14 @@ interface AssetMetadata {
 // Default IPFS Gateway URL used for resolving ipfs:// URLs
 const DEFAULT_IPFS_GATEWAY = 'https://api.universalprofile.cloud/ipfs/';
 
+// ADD THIS DEFINITION
+const DEFAULT_ASSET_METADATA_FALLBACK: AssetMetadata = {
+    name: 'Unknown Asset',
+    symbol: '???',
+    decimals: 18, // Default decimals
+    iconUrl: null,
+};
+
 // Interface for basic Profile Data used within this component
 interface ProfileData { name: string; image: string; }
 
@@ -162,7 +170,7 @@ const PollListModal: React.FC<PollListModalProps> = ({ onClose, onPollSelect }) 
     try {
       // Initialize manager without args, get web3 from context
       const lsp3Manager = new LSP3ProfileManager();
-      const profileData = await lsp3Manager.getProfileData(creatorAddress); // Remove web3 argument
+      const profileData = await lsp3Manager.getProfileData(creatorAddress, web3); // Pass web3
       let profileInfo: ProfileData | null = null;
       if (profileData) {
          let imageUrl = '/default-avatar.png'; 
@@ -205,109 +213,136 @@ const PollListModal: React.FC<PollListModalProps> = ({ onClose, onPollSelect }) 
       setCachedProfile(lowerCaseAddress, null);
       return null;
     }
-  }, [upProvider, creatorProfileCache]); // Depend on provider and state cache
+  }, [upProvider, creatorProfileCache, web3]); // Depend on provider and state cache
 
   // Callback to fetch LSP4 asset metadata (uses state cache, then local storage, then RPC)
   const fetchMetadataForAddress = useCallback(async (assetAddress: string): Promise<AssetMetadata | null> => {
-    if (!assetAddress || assetAddress === '0x0000000000000000000000000000000000000000') return null;
+    if (!assetAddress || assetAddress === '0x0000000000000000000000000000000000000000') {
+        return null; // Return null for invalid or zero addresses
+    }
     const lowerCaseAddress = assetAddress.toLowerCase();
 
     // 1. Check state cache
-    if (tokenMetadataCache[lowerCaseAddress] !== undefined) {
-         return tokenMetadataCache[lowerCaseAddress];
+    const stateCachedMeta = tokenMetadataCache[lowerCaseAddress];
+    if (stateCachedMeta !== undefined) { 
+        if (stateCachedMeta !== null) return stateCachedMeta;
     }
 
     // 2. Check local storage cache
-    const cached = getCachedMetadata(lowerCaseAddress);
-    // Ensure cached data includes decimals, otherwise refetch
-    if(cached !== undefined && cached.decimals !== undefined) { 
-        setTokenMetadataCache(prev => ({ ...prev, [lowerCaseAddress]: cached })); 
-        return cached;
+    const localStorageCachedMeta = getCachedMetadata(lowerCaseAddress);
+    if (localStorageCachedMeta !== undefined) { 
+        if (localStorageCachedMeta !== null && localStorageCachedMeta.decimals !== undefined) { 
+            setTokenMetadataCache(prev => ({ ...prev, [lowerCaseAddress]: localStorageCachedMeta }));
+            return localStorageCachedMeta;
+        }
     }
 
     // 3. Fetch from RPC
     if (!web3?.currentProvider) {
-      console.warn('fetchMetadataForAddress: Web3 provider not available');
-      return null;
+      console.warn(`fetchMetadataForAddress: Web3 provider not available for ${assetAddress}. Returning default metadata.`);
+      const fallbackData = { ...DEFAULT_ASSET_METADATA_FALLBACK, name: `No Web3 - ${assetAddress.substring(0,6)}` };
+      setTokenMetadataCache(prev => ({ ...prev, [lowerCaseAddress]: fallbackData }));
+      setCachedMetadata(lowerCaseAddress, fallbackData); 
+      return fallbackData;
     }
-    try {
-      const erc725js = new ERC725(lsp4Schema as any, assetAddress, web3.currentProvider, { ipfsGateway: DEFAULT_IPFS_GATEWAY });
-      // Fetch name, symbol, and metadata
-      const fetchedData = await erc725js.fetchData(['LSP4TokenName', 'LSP4TokenSymbol', 'LSP4Metadata']); 
-      let name = 'Unknown Asset';
-      let symbol = '???'; 
-      let iconUrl = null;
-      let decimals = 18; // Default to 18 decimals
 
-      // Fetch decimals separately using specific LSP7 call
+    let name = DEFAULT_ASSET_METADATA_FALLBACK.name;
+    let symbol = DEFAULT_ASSET_METADATA_FALLBACK.symbol;
+    let iconUrl = DEFAULT_ASSET_METADATA_FALLBACK.iconUrl;
+    let decimals = DEFAULT_ASSET_METADATA_FALLBACK.decimals;
+
+    try {
       try {
           const tokenContract = new web3.eth.Contract(LSP7_DECIMALS_ABI as any, assetAddress);
-          const decimalsResult = await tokenContract.methods.decimals().call();
-          decimals = Number(decimalsResult); // Convert uint8 result to number
+          if (tokenContract && tokenContract.methods && typeof tokenContract.methods.decimals === 'function') {
+              const decimalsResult = await tokenContract.methods.decimals().call();
+              if (decimalsResult !== null && decimalsResult !== undefined && !isNaN(Number(decimalsResult))) {
+                  decimals = Number(decimalsResult);
+              } else {
+                  console.warn(`Decimals call for ${assetAddress} returned invalid value: ${decimalsResult}. Using default ${DEFAULT_ASSET_METADATA_FALLBACK.decimals}.`);
+              }
+          } else {
+              console.warn(`Could not create contract or decimals method not found for ${assetAddress}. Using default ${DEFAULT_ASSET_METADATA_FALLBACK.decimals}.`);
+          }
       } catch (decError) {
-          console.warn(`Could not fetch decimals for ${assetAddress}, defaulting to 18:`, decError);
-          // Keep default 18 if decimals call fails
+          console.warn(`Error fetching decimals for ${assetAddress}, using default ${DEFAULT_ASSET_METADATA_FALLBACK.decimals}:`, decError);
       }
 
-      // Extract token name
-      const nameData = fetchedData.find(d => d.name === 'LSP4TokenName');
-      if (nameData && typeof nameData.value === 'string') {
+      const erc725js = new ERC725(lsp4Schema as any, assetAddress, web3.currentProvider, { ipfsGateway: DEFAULT_IPFS_GATEWAY });
+      const fetchedLsp4Data = await erc725js.fetchData(['LSP4TokenName', 'LSP4TokenSymbol', 'LSP4Metadata']);
+      
+      const nameData = fetchedLsp4Data.find(d => d.name === 'LSP4TokenName');
+      if (nameData && typeof nameData.value === 'string' && nameData.value.trim() !== '') {
         name = nameData.value;
       }
       
-      // Extract token symbol 
-      const symbolData = fetchedData.find(d => d.name === 'LSP4TokenSymbol'); 
-      if (symbolData && typeof symbolData.value === 'string') { 
-        symbol = symbolData.value; 
+      const symbolData = fetchedLsp4Data.find(d => d.name === 'LSP4TokenSymbol');
+      if (symbolData && typeof symbolData.value === 'string' && symbolData.value.trim() !== '') {
+        symbol = symbolData.value;
       }
       
-      // Extract icon URL from complex metadata structure
-      const metadataData = fetchedData.find(d => d.name === 'LSP4Metadata');
-      if (metadataData?.value && typeof metadataData.value === 'object') {
-        const value = metadataData.value as any; 
-        const metadataValue = value?.LSP4Metadata;
+      const metadataLsp4 = fetchedLsp4Data.find(d => d.name === 'LSP4Metadata');
+      if (metadataLsp4?.value && typeof metadataLsp4.value === 'object') {
+        const value = metadataLsp4.value as any; 
+        const metadataValue = value?.LSP4Metadata; 
         let rawIconUrl = null;
-        if (metadataValue?.icon) {
+
+        if (metadataValue?.icon) { 
             if(Array.isArray(metadataValue.icon) && metadataValue.icon.length > 0) {
-                 const firstIcon = metadataValue.icon[0];
-                 rawIconUrl = firstIcon?.url || (typeof firstIcon === 'string' ? firstIcon : null);
-            } else if (typeof metadataValue.icon === 'string') {
+                 const firstIconEntry = metadataValue.icon[0];
+                 rawIconUrl = firstIconEntry?.url || (typeof firstIconEntry === 'string' ? firstIconEntry : null);
+            } else if (typeof metadataValue.icon === 'string') { 
                 rawIconUrl = metadataValue.icon;
             }
         }
         if (!rawIconUrl && metadataValue?.images && Array.isArray(metadataValue.images) && metadataValue.images.length > 0) {
-            const firstImageSet = metadataValue.images[0];
+            const firstImageSet = metadataValue.images[0]; 
             if(Array.isArray(firstImageSet) && firstImageSet.length > 0) {
-                 const firstImage = firstImageSet[0];
+                 const firstImage = firstImageSet[0]; 
                  rawIconUrl = firstImage?.url || (typeof firstImage === 'string' ? firstImage : null);
+            } else if (typeof firstImageSet === 'object' && firstImageSet !== null && 'url' in firstImageSet) { 
+                rawIconUrl = (firstImageSet as any).url;
             }
         }
+        if (!rawIconUrl && value?.icon) { 
+             if(Array.isArray(value.icon) && value.icon.length > 0) {
+                 const firstIconEntry = value.icon[0];
+                 rawIconUrl = firstIconEntry?.url || (typeof firstIconEntry === 'string' ? firstIconEntry : null);
+            } else if (typeof value.icon === 'string') {
+                rawIconUrl = value.icon;
+            }
+        }
+
         if (rawIconUrl && typeof rawIconUrl === 'string') {
             if (rawIconUrl.startsWith('ipfs://')) {
                iconUrl = `${DEFAULT_IPFS_GATEWAY}${rawIconUrl.substring(7)}`;
-            } else if (!rawIconUrl.startsWith('http')) {
-               iconUrl = `${DEFAULT_IPFS_GATEWAY}${rawIconUrl}`;
+            } else if (!rawIconUrl.startsWith('http') && !rawIconUrl.startsWith('data:')) { 
+               iconUrl = `${DEFAULT_IPFS_GATEWAY}${rawIconUrl}`; 
             } else {
               iconUrl = rawIconUrl; 
             }
         }
       }
       
-      const newMetadata: AssetMetadata = { name, symbol, decimals, iconUrl }; // <-- Add decimals to object
+      const finalMetadata: AssetMetadata = { name, symbol, decimals, iconUrl };
 
-      // 4. Update state cache and local storage
-      setTokenMetadataCache(prevCache => ({ ...prevCache, [lowerCaseAddress]: newMetadata }));
-      setCachedMetadata(lowerCaseAddress, newMetadata);
-      return newMetadata;
+      setTokenMetadataCache(prevCache => ({ ...prevCache, [lowerCaseAddress]: finalMetadata }));
+      setCachedMetadata(lowerCaseAddress, finalMetadata);
+      return finalMetadata;
 
     } catch (error: any) {
-      console.warn(`Failed to fetch asset (${assetAddress}) metadata:`, error);
-      setTokenMetadataCache(prevCache => ({ ...prevCache, [lowerCaseAddress]: null })); 
-      setCachedMetadata(lowerCaseAddress, null);
-      return null;
+      console.warn(`Failed to fetch full asset metadata for ${assetAddress}, returning default with error notice:`, error);
+      const errorFallbackMetadata: AssetMetadata = { 
+        ...DEFAULT_ASSET_METADATA_FALLBACK, 
+        name: `Error (${assetAddress.substring(0,6)}...)`,
+        symbol: `N/A` 
+      };
+      setTokenMetadataCache(prevCache => ({ ...prevCache, [lowerCaseAddress]: errorFallbackMetadata }));
+      setCachedMetadata(lowerCaseAddress, errorFallbackMetadata);
+      return errorFallbackMetadata;
     }
-  }, [web3, tokenMetadataCache]); // Depend on provider and state cache
-  
+  }, [web3, tokenMetadataCache]);
+
   // Effect to fetch the list of accounts the current user follows
   // Runs when the connected address or web3 instance changes
   useEffect(() => {
