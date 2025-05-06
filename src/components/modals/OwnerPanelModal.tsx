@@ -42,7 +42,7 @@ interface TokenCommissionInfo {
     address: string;
     name?: string;      
     symbol?: string;    
-    decimals?: bigint;  
+    decimals?: number;
     iconUrl?: string;   
     earnedAmount: string; 
 }

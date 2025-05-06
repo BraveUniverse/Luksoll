@@ -248,85 +248,81 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
                     votedOptionId = Number(result);
                     
                   } catch (optionErr) {
-                    
-                    console.warn(`Could not fetch votedOption for ${voterAddress} on poll ${pollIdNum}, trying option loop:`, optionErr); 
-                    let found = false;
-                    for (let i = 0; i < (pollDetails?.options?.length || 0) && !found; i++) {
-                      try {
-                        const hasVotedForOption = await contract.methods.hasVotedForOption(pollIdNum, i, voterAddress).call();
-                        if (hasVotedForOption) {
-                          votedOptionId = i;
-                          found = true;
-                          
-                        }
-                      } catch (optErr) {
-                        
-                      }
-                    }
+                    console.warn(`Could not fetch votedOption for ${voterAddress} on poll ${pollIdNum}:`, optionErr);
+                    // Continue to try and add to a default/unknown option or skip
                   }
                   
+                  // Ensure votedOptionId is a valid index
                   if (votedOptionId >= 0 && votedOptionId < votersArrays.length) {
                     votersArrays[votedOptionId].push({
                       address: voterAddress,
                       profile: null,
                       loading: true
                     });
-                  } else {
-                    
+                  } else if (votedOptionId === -1 && allVoters.length < 100) { // Only if not too many voters to avoid spamming general list
+                     // Maybe add to a general list if option is unknown or error
+                     // For now, just log if an option couldn't be determined.
+                     console.log(`Voter ${voterAddress} found but their option could not be determined for poll ${pollIdNum}.`);
                   }
-                } catch (voterErr) {
-                  
+                } catch (singleVoterErr) {
+                  console.warn(`Error processing single voter ${voterAddress} from getVoters list:`, singleVoterErr);
                 }
-              }
+              } 
             } else {
-              
+              console.log("No voters found using getVoters.")
             }
-          } catch (getVotersErr) {
-            
+          } catch (allVotersErr) {
+            console.warn(`Could not use getVoters for poll ${pollIdNum}:`, allVotersErr);
           }
         }
-      } catch (pollIdErr) {
-        
+
+      } catch (outerError) {
+        console.error("Error in fetching voter lists (getVotersByOption/getVoters part):", outerError);
       }
+
+      
+      setVotersPerOption(votersArrays);
       
       
       const lsp3Manager = new LSP3ProfileManager();
       
+      
       for (let i = 0; i < votersArrays.length; i++) {
         for (let j = 0; j < votersArrays[i].length; j++) {
+          const voterAddress = votersArrays[i][j].address;
+          // Check if profile already fetched or cached (optional optimization here)
           try {
             
-            const profileData = await lsp3Manager.getProfileData(votersArrays[i][j].address);
+            const profileData = await lsp3Manager.getProfileData(votersArrays[i][j].address, web3); // Added web3 argument
             let imageUrl = '/default-avatar.png';
             if (profileData) {
                 const processedImageUrl = lsp3Manager.getProfileImageUrl(profileData);
-                if (processedImageUrl) {
-                    imageUrl = processedImageUrl;
-                }
+                if(processedImageUrl) imageUrl = processedImageUrl;
             }
-            votersArrays[i][j].profile = profileData ? {
-              name: profileData.name || `User (${votersArrays[i][j].address.substring(0, 6)}...)`,
-              image: imageUrl
-            } : {
-              name: `User (${votersArrays[i][j].address.substring(0, 6)}...)`,
-              image: '/default-avatar.png'
-            };
-          } catch (profileErr) {
-            console.error("Error fetching profile for voter:", votersArrays[i][j].address, profileErr);
-            votersArrays[i][j].profile = {
-              name: `User (${votersArrays[i][j].address.substring(0, 6)}...)`,
-              image: '/default-avatar.png'
-            };
-          } finally {
-            votersArrays[i][j].loading = false;
+            
+            setVotersPerOption(prev => {
+              const newVoters = [...prev];
+              if (newVoters[i] && newVoters[i][j]) {
+                newVoters[i][j].profile = profileData ? { name: profileData.name || `User ${voterAddress.substring(0,6)}...`, image: imageUrl } : { name: `User ${voterAddress.substring(0,6)}...`, image: imageUrl };
+                newVoters[i][j].loading = false;
+              }
+              return newVoters;
+            });
+          } catch (profileError) {
+            console.error(`Failed to fetch profile for ${voterAddress}:`, profileError);
+            setVotersPerOption(prev => {
+              const newVoters = [...prev];
+              if (newVoters[i] && newVoters[i][j]) {
+                newVoters[i][j].profile = { name: `User ${voterAddress.substring(0,6)}...`, image: '/default-avatar.png' }; // Fallback profile
+                newVoters[i][j].loading = false;
+              }
+              return newVoters;
+            });
           }
         }
       }
-      
-      
-      setVotersPerOption(votersArrays);
     } catch (error) {
-      console.error("Error fetching voters list:", error);
+      console.error("Error fetching voters:", error);
     } finally {
       setIsLoadingVoters(false);
     }
@@ -590,149 +586,97 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
 
   
   const fetchPollDetails = async () => {
-    if (!web3 || !contract) {
-        setError("Web3 connection or contract not found."); 
+    if (!contract || !web3) {
+      setError("Contract or Web3 instance not available.");
       setIsLoading(false);
       return;
     }
-    
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      
-      let detailsResult: any; 
-      try {
-        detailsResult = await contract.methods.getPollDetails(pollId).call(); 
-        
-        
-        
-        if (!detailsResult || !detailsResult.question) {
-            throw new Error("Could not get valid poll details from contract."); 
-         }
-      } catch (detailErr: any) { 
-          console.error("Error in getPollDetails call:", detailErr);
-          setError(`Failed to fetch poll details: ${detailErr.message}`); 
-          setIsLoading(false);
-          return;
-        }
-
-      
-      const options: string[] = [];
-      try {
-        const pollOptionsResult = await contract.methods.getPollOptions(pollId).call();
-          if (Array.isArray(pollOptionsResult)) { options.push(...pollOptionsResult); }
-          else { console.warn(`getPollOptions for poll ${pollId} did not return an array.`); }
-      } catch (optionsErr: any) { 
-          console.error(`Error fetching options for poll ${pollId}:`, optionsErr);
-          
-      }
-      
-      
-      const voteResults: number[] = [];
-      if (options.length > 0) {
-        try {
-               const votePromises = options.map((_, idx) => contract.methods.getPollVotes(pollId, idx).call());
-               const votesRaw = await Promise.all(votePromises);
-               votesRaw.forEach((voteCount: any) => voteResults.push(Number(voteCount || 0)));
-               
-        } catch (votesErr) {
-                console.error(`Error fetching votes for poll ${pollId}:`, votesErr);
-                
-           options.forEach(() => voteResults.push(0));
-        }
-      } else {
-           console.warn(`No options found for poll ${pollId}, cannot fetch votes.`);
+      const details = await getPollDetails(contract, pollId, web3);
+      if (!details) {
+        throw new Error("Poll details could not be fetched or poll does not exist.");
       }
 
-      
-      let userVoteData = { hasVoted: false, votedOption: -1, hasClaimedReward: false };
-      if (address && isConnected) {
-        try {
-             userVoteData = await getUserVoteInfo(contract, pollId, address);
-             
-           } catch (userVoteErr) {
-               console.warn(`Could not fetch user vote info for poll ${pollId}:`, userVoteErr);
-           }
-        }
-
-      
-      
-      
-      const totalVotes = voteResults.length > 0 ? voteResults.reduce((sum, votes) => sum + votes, 0) : 0;
-
-      
-      let calculatedEndTime = 0;
-      try {
-          const rawEndTime = detailsResult?.endTime; 
-          if (rawEndTime !== null && rawEndTime !== undefined && String(rawEndTime).trim() !== '') { 
-              const endTimeNum = Number(rawEndTime); 
-              if (!isNaN(endTimeNum) && endTimeNum > 0) { 
-                  calculatedEndTime = endTimeNum * 1000; 
-              } else {
-                  console.warn(`Invalid endTime format for poll ${pollId}: ${rawEndTime}`);
-              }
-            } else {
-              console.warn(`Missing endTime for poll ${pollId}`);
+      let creatorProfileData: { name: string; image: string } | null = null;
+      if (details.creator) {
+        const cachedCreatorProfile = getCachedProfile(details.creator.toLowerCase());
+        if (cachedCreatorProfile) {
+          creatorProfileData = cachedCreatorProfile;
+        } else {
+          const lsp3Manager = new LSP3ProfileManager();
+          const profileData = await lsp3Manager.getProfileData(details.creator, web3);
+          if (profileData) {
+            const imageUrl = lsp3Manager.getProfileImageUrl(profileData);
+            creatorProfileData = {
+              name: profileData.name || `User ${details.creator.substring(0, 6)}...`,
+              image: imageUrl || '/default-avatar.png'
+            };
+            setCachedProfile(details.creator.toLowerCase(), creatorProfileData);
+          } else {
+            creatorProfileData = {
+              name: `User ${details.creator.substring(0, 6)}...`,
+              image: '/default-avatar.png'
+            };
+             setCachedProfile(details.creator.toLowerCase(), creatorProfileData);
           }
-          
-      } catch (e) {
-          console.error(`Error processing endTime for poll ${pollId}:`, e);
-          calculatedEndTime = 0;
+        }
       }
 
-      
-      
-      // Calculate canClaimReward without checking if the poll has ended
-      // const pollEndedOrTargetReached = !Boolean(detailsResult.isActive) || (Number(detailsResult.targetVoterCount || 0) > 0 && totalVotes >= Number(detailsResult.targetVoterCount));
-      const canClaimReward = Boolean(detailsResult.rewardsEnabled) && userVoteData.hasVoted && !userVoteData.hasClaimedReward; // Removed pollEndedOrTargetReached check
-      
-      
-      const formattedPoll: Omit<PollDetail, 'creatorProfile'> = { 
-        question: detailsResult.question,
-        description: detailsResult.description || '',
-        options: options.map((text, idx) => ({
-            id: idx,
-            text: text,
-            voteCount: voteResults[idx] || 0,
-            percentage: totalVotes > 0 ? ((voteResults[idx] || 0) / totalVotes) * 100 : 0,
+      let userVoteInfo = { hasVoted: false, votedOption: -1, hasClaimedReward: false };
+      if (address && isConnected) {
+        userVoteInfo = await getUserVoteInfo(contract, pollId, address);
+      }
+
+      const pollEndTime = Number(details.endTime) * 1000;
+      const isPollEnded = Date.now() > pollEndTime;
+
+      setPollDetails({
+        question: details.question,
+        description: details.description,
+        options: details.options.map((opt: any, index: number) => ({
+          id: index,
+          text: opt.text,
+          voteCount: Number(opt.voteCount),
+          percentage: details.totalVotes > 0 ? (Number(opt.voteCount) / Number(details.totalVotes)) * 100 : 0,
         })),
-        totalVotes,
-        startTime: Number(detailsResult.startTime || 0) * 1000, 
-        endTime: calculatedEndTime,
-        isActive: Boolean(detailsResult.isActive),
-        hasVoted: userVoteData.hasVoted,
-        targetVoterCount: Number(detailsResult.targetVoterCount || 0),
-        rewardsEnabled: Boolean(detailsResult.rewardsEnabled),
-        rewardPerVote: web3 ? web3.utils.fromWei(detailsResult.rewardPerVote?.toString() || '0', 'ether') : '0',
-        creator: detailsResult.creator,
-        hasClaimedReward: userVoteData.hasClaimedReward,
-        canClaimReward,
-        userVotedOption: userVoteData.votedOption,
-        requirementType: Number(detailsResult.votingRequirement || 0), 
-        requiredTokenAddress: detailsResult.requiredTokenAddress || '0x0000000000000000000000000000000000000000',
-        requiredMinTokenAmount: detailsResult.requiredTokenAmount?.toString() || '0', 
-        rewardType: Number(detailsResult.rewardType || 0),
-        rewardToken: detailsResult.rewardToken || '0x0000000000000000000000000000000000000000',
-        ended: !Boolean(detailsResult.isActive) || (calculatedEndTime > 0 && calculatedEndTime <= Date.now()), 
-      };
-      
-      
+        totalVotes: Number(details.totalVotes),
+        startTime: Number(details.startTime),
+        endTime: Number(details.endTime),
+        isActive: details.isActive && !isPollEnded,
+        ended: isPollEnded,
+        hasVoted: userVoteInfo.hasVoted,
+        userVotedOption: userVoteInfo.votedOption,
+        targetVoterCount: Number(details.targetVoterCount),
+        rewardsEnabled: details.rewardsEnabled,
+        rewardPerVote: details.rewardPerVote.toString(),
+        creator: details.creator,
+        creatorProfile: creatorProfileData,
+        hasClaimedReward: userVoteInfo.hasClaimedReward,
+        canClaimReward: details.rewardsEnabled && userVoteInfo.hasVoted && !userVoteInfo.hasClaimedReward && isPollEnded && details.isActive,
+        requirementType: Number(details.votingRequirement),
+        requiredTokenAddress: details.requiredTokenAddress,
+        requiredMinTokenAmount: details.requiredMinTokenAmount.toString(),
+        rewardType: Number(details.rewardType),
+        rewardToken: details.rewardToken,
+      });
 
-      
-      
-      setPollDetails({ ...formattedPoll, creatorProfile: null }); 
-      
-      setError(null);
-    } catch (err: any) {
-        console.error(`Generic error in fetchPollDetails for poll ${pollId}:`, err);
-        setError(`An error occurred while loading poll details: ${err.message}`); 
-    } 
-    finally { setIsLoading(false); }
-  }; 
+      if (address && details.isActive && !isPollEnded && !userVoteInfo.hasVoted) {
+        setCanVote(true);
+      } else {
+        setCanVote(false);
+      }
 
-  
-  
+    } catch (e: any) {
+      console.error("Error fetching poll details:", e);
+      setError(e.message || "Failed to load poll details. It might have been deleted or an error occurred.");
+      setPollDetails(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   
   const fetchCreatorProfile = useCallback(async (creatorAddress: string): Promise<ProfileData | null> => {
       if (!upProvider || !creatorAddress) return null;
@@ -750,7 +694,7 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
       try {
         
         const lsp3Manager = new LSP3ProfileManager(); 
-        const profileData = await lsp3Manager.getProfileData(creatorAddress);
+        const profileData = await lsp3Manager.getProfileData(creatorAddress, web3);
         let profileInfo: ProfileData | null = null;
         
         if (profileData) {
@@ -782,7 +726,7 @@ const PollDetailModal: FC<PollDetailModalProps> = ({ pollId, onClose, isCreator 
         return null;
       }
     
-    }, [upProvider]); 
+    }, [upProvider, web3]); 
 
   
   const fetchMetadataForAddress = useCallback(async (assetAddress: string): Promise<AssetMetadata | null> => { 
