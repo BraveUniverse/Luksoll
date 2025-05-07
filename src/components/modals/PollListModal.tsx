@@ -499,7 +499,7 @@ const PollListModal: React.FC<PollListModalProps> = ({ onClose, onPollSelect }) 
         
         const pollPromises: Promise<Poll | null>[] = [];
         // Fetch latest ~20 polls for performance (adjust as needed)
-        const startId = Math.max(0, pollCount - 20);
+        const startId = Math.max(0, pollCount - 100);
         for (let i = pollCount - 1; i >= startId; i--) {
           pollPromises.push(
             // Use an async IIFE to handle async operations within the loop safely
